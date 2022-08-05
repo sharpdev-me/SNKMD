@@ -1213,7 +1213,8 @@ function init()
   get_classes = function(units)
     local classes = {}
     for _, unit in ipairs(units) do
-      table.insert(classes, table.copy(character_classes[unit.character]))
+      local uclasses = unit.hero ~= nil and unit.hero.classes or character_classes[unit.character]
+      table.insert(classes, table.copy(uclasses))
     end
     return table.unify(table.flatten(classes))
   end

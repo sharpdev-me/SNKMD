@@ -18,7 +18,7 @@ ModTypes.Hero = setmetatable({
         end
 
         function hero:distinctName()
-            return hero.mod.name .. ":" .. hero.name
+            return hero.mod.name .. hero.name
         end
 
         function hero:getRenderColor()
@@ -33,7 +33,7 @@ ModTypes.Hero = setmetatable({
         end
 
         function hero:capitalize()
-            return hero.name:capitalize()
+            return hero.name:gsub("_", " "):capitalize()
         end
 
         function hero:createClassString()
@@ -69,7 +69,7 @@ local function LevelThree(definition)
         local heroName = (self.hero == nil) and "unknown" or self.hero.name
         local modName = (self.hero == nil) and "unknown" or self.hero.mod.name
 
-        return modName .. ":" .. heroName .. ":" .. self.name
+        return modName .. heroName .. self.name
     end
 
     function levelThree:getString(isActive)
@@ -78,7 +78,7 @@ local function LevelThree(definition)
 
     function levelThree:getDescription(isActive)
         local text = type(self.description) == "table" and self.description(self) or self.description
-        if not isActive then return "[light_bg]" .. text:gsub("\\[%w+\\]", "") else return "[fg]" .. text end
+        if not isActive then return "[light_bg]" .. text:gsub("%[%w+%]", "") else return "[fg]" .. text end
     end
 
     function levelThree:getRenderColor()

@@ -225,6 +225,55 @@ function ModLoader.randomHero(tier_weights)
     return random:table(combined)
 end
 
+function ModLoader.isCharacterModded(character)
+    return type(character) == "table" and character.name ~= nil
+end
+
+function ModLoader.stringifyRun(run)
+    if run.units then
+        local newUnits = table.shallow_copy(run.units)
+        run.units = {}
+
+        for _, unit in ipairs(newUnits) do
+            if unit.hero then
+                local u = {
+                    name = unit.hero.name,
+                    mod = unit.hero.mod.name
+                }
+
+                local uu = table.shallow_copy(unit)
+                uu.hero = u
+                table.insert(run.units, uu)
+            else
+                table.insert(run.units, unit)
+            end
+        end
+    end
+
+    return table.tostring(run)
+end
+
+function ModLoader.parse_run(run)
+    if run.units then
+        local newUnits = table.shallow_copy(run.units)
+        run.units = {}
+
+        for _, unit in ipairs(newUnits) do
+            local add = true
+            if unit.hero then
+                local mod = ModLoader.loadedMods[unit.hero.mod]
+                if mod then
+                    unit.hero = mod._heroes[unit.hero.name]
+                else add = false end
+            end
+
+            if add then table.insert(run.units, unit) end
+        end
+    end
+
+    return run
+end
+
 function ModLoader.isDirectory(dir)
     return love.filesystem.getInfo(dir, "directory") ~= nil
 end

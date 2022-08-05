@@ -140,15 +140,20 @@ end
 function system.save_run(level, loop, gold, units, passives, shop_level, shop_xp, run_passive_pool, locked_state)
   local run = {level = level, loop = loop, gold = gold, units = units, passives = passives, shop_level = shop_level, shop_xp = shop_xp, run_passive_pool = run_passive_pool, locked_state = locked_state,
     current_new_game_plus = current_new_game_plus, run_time = run_time}
-  local str = "return " .. table.tostring(run)
+  -- local str = "return " .. table.tostring(run)
+  local str = "return " .. ModLoader.stringifyRun(run)
   love.filesystem.write("run_v4.txt", str)
 end
 
 
 function system.load_run()
   local chunk = love.filesystem.load("run_v4.txt")
-  if chunk then return chunk()
-  else return {} end
+
+  local r
+  if chunk then r = chunk()
+  else r = {} end
+
+  return ModLoader.parse_run(r)
 end
 
 

@@ -269,11 +269,12 @@ end
 
 
 function BuyScreen:buy(character, i)
-  local modded = type(character == "table") and character.name ~= nil
+  local modded = ModLoader.isCharacterModded(character)
   local gold_cost = modded and character.tier or character_tiers[character]
   local bought
-  if table.any(self.units, function(v) if modded then return v.hero:distinctName() == character:distinctName() else return v.character == v.character end end) and gold >= gold_cost then
-    if table.any(self.units, function(v) if modded then return (v.hero:distinctName() == character:distinctName()) and v.level == 3 else return (v.character == v.character) and v.level == 3 end end) then
+
+  if table.any(self.units, function(v) if v.hero and modded then return v.hero:distinctName() == character:distinctName() else return v.character == character end end) and gold >= gold_cost then
+    if table.any(self.units, function(v) if v.hero and modded then return (v.hero:distinctName() == character:distinctName()) and v.level == 3 else return (v.character == character) and v.level == 3 end end) then
       if not self.info_text then
         self.info_text = InfoText{group = main.current.ui}
         self.info_text:activate({
@@ -286,7 +287,7 @@ function BuyScreen:buy(character, i)
       gold = gold - gold_cost
       self.shop_text:set_text{{text = '[wavy_mid, fg]shop [fg]- [fg, nudge_down]gold: [yellow, nudge_down]' .. gold, font = pixul_font, alignment = 'center'}}
       for _, unit in ipairs(self.units) do
-        if (unit.character == character) or (modded and unit.hero:distinctName() == character:distinctName()) then
+        if (unit.character == character) or (unit.hero and modded and unit.hero:distinctName() == character:distinctName()) then
           if unit.level == 1 then
             unit.reserve[1] = unit.reserve[1] + 1
             if unit.reserve[1] > 1 then
@@ -1602,10 +1603,9 @@ function ShopCard:init(args)
   self.interact_with_mouse = true
   self.character_icon = CharacterIcon{group = main.current.effects, x = self.x, y = self.y - 26, character = self.unit, parent = self}
   self.class_icons = {}
-  local isModded = type(self.unit) == "table" and self.unit.name ~= nil
-  self.modded = isModded
+  self.modded = ModLoader.isCharacterModded(self.unit)
   local classes = {}
-  if isModded and self.unit.classes then
+  if self.modded and self.unit.classes then
     classes = self.unit.classes
   else
     classes = character_classes[self.unit]
@@ -1616,18 +1616,18 @@ function ShopCard:init(args)
     elseif #classes == 3 then x = self.x - 20 end
     table.insert(self.class_icons, ClassIcon{group = main.current.effects, x = x + (i-1)*20, y = self.y + 6, class = class, character = self.unit, units = self.parent.units, parent = self})
   end
-  if isModded then self.cost = self.unit.tier else self.cost = character_tiers[self.unit] end
+  if self.modded then self.cost = self.unit.tier else self.cost = character_tiers[self.unit] end
   self.spring:pull(0.2, 200, 10)
   self:refresh()
 end
 
 
 function ShopCard:refresh()
-  self.owned = table.any(self.parent.units, function(v) return v.character == self.unit end)
+  self.owned = table.any(self.parent.units, function(v) if v.hero and self.modded then return v.hero:distinctName() == self.unit:distinctName() else return v.character == self.unit end end)
   if self.owned then
     self.owned_n = 0
     for _, unit in ipairs(self.parent.units) do
-      if unit.character == self.unit then
+      if (unit.character == self.unit) or (unit.hero and self.modded and unit.hero:distinctName() == self.unit:distinctName()) then
         self.owned_n = self.owned_n + ((unit.level == 1 and 1) or (unit.level == 2 and 3) or (unit.level == 3 and 9))
         if unit.reserve then
           self.owned_n = self.owned_n + (unit.reserve[2] or 0)*3
@@ -1941,7 +1941,9 @@ function ClassIcon:draw()
       else
         if next_n > j then next_n = nil end
       end
-      if table.any(self.units, function(v) return v.character == self.character end) then next_n = nil end
+      if table.any(self.units, function(v)
+        if v.hero and ModLoader.isCharacterModded(self.character) then return v.hero:distinctName() == self.character:distinctName() else return v.character == self.character end
+      end) then next_n = nil end
     end
 
     graphics.rectangle(self.x, self.y, 16, 24, 4, 4, self.highlighted and fg[0] or ((n >= i) and class_colors[self.class] or bg[3]))
@@ -2063,7 +2065,8 @@ function ClassIcon:on_mouse_enter()
 
   if not self.parent:is(ShopCard) then
     for _, character in ipairs(self.parent.characters) do
-      if table.any(character_classes[character.character], function(v) return v == self.class end) then
+      local classes = character.hero ~= nil and character.hero.classes or character_classes[character.character]
+      if table.any(classes, function(v) return v == self.class end) then
         character:highlight()
         for _, c in ipairs(character.parts) do
           c:highlight()
@@ -2083,7 +2086,8 @@ function ClassIcon:on_mouse_exit()
 
   if not self.parent:is(ShopCard) then
     for _, character in ipairs(self.parent.characters) do
-      if table.any(character_classes[character.character], function(v) return v == self.class end) then
+      local classes = character.hero ~= nil and character.hero.classes or character_classes[character.character]
+      if table.any(classes, function(v) return v == self.class end) then
         character:unhighlight()
         for _, c in ipairs(character.parts) do
           c:unhighlight()
