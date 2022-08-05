@@ -29,7 +29,6 @@ An example mod can be found [here](https://github.com/sharpdev-me/SNKMD-Example)
 
 ## Current Plans
 
-- There is currently an issue with the graphics in the shop that need to be resolved
 - A little more effort in reworking the code to support modded units
 - Custom classes
 - Create an API, similar to how programs like tModLoader and Forge work
