@@ -1,2 +1,6 @@
 steam/
 builds/
+.vscode
+*.so
+steam_appid.txt
+steam_rich_presence.txt

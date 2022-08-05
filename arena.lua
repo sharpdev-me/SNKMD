@@ -18,7 +18,7 @@ function Arena:on_enter(from, level, loop, units, passives, shop_level, shop_xp,
   self.shop_xp = shop_xp or 0
   self.lock = lock
 
-  self.starting_units = table.copy(units)
+  self.starting_units = table.shallow_copy(units)
 
   if not state.mouse_control then
     input:set_mouse_visible(false)
@@ -90,9 +90,9 @@ function Arena:on_enter(from, level, loop, units, passives, shop_level, shop_xp,
 
   for i, unit in ipairs(units) do
     if i == 1 then
-      self.player = Player{group = self.main, x = gw/2, y = gh/2 + 16, leader = true, character = unit.character, level = unit.level, passives = self.passives, ii = i}
+      self.player = Player{group = self.main, x = gw/2, y = gh/2 + 16, leader = true, character = unit.character, level = unit.level, passives = self.passives, ii = i, hero = unit.hero}
     else
-      self.player:add_follower(Player{group = self.main, character = unit.character, level = unit.level, passives = self.passives, ii = i})
+      self.player:add_follower(Player{group = self.main, character = unit.character, level = unit.level, passives = self.passives, ii = i, hero = unit.hero})
     end
   end
 
@@ -1185,13 +1185,22 @@ end
 
 
 function CharacterHP:draw()
+  local unit = self.parent
+  local color
+  if unit.hero then
+    local hColor = unit.hero:getColor()
+
+    if hColor[0] ~= nil then color = hColor[0] else color = hColor end
+  else
+    color = _G[character_color_strings[self.parent.character]][-2]
+  end
   graphics.push(self.x, self.y, 0, self.hfx.hit.x, self.hfx.hit.x)
-    graphics.rectangle(self.x, self.y - 2, 14, 4, 2, 2, self.parent.dead and bg[5] or (self.hfx.hit.f and fg[0] or _G[character_color_strings[self.parent.character]][-2]), 2)
+    graphics.rectangle(self.x, self.y - 2, 14, 4, 2, 2, self.parent.dead and bg[5] or (self.hfx.hit.f and fg[0] or color), 2)
     if self.parent.hp > 0 then
-      graphics.rectangle2(self.x - 7, self.y - 4, 14*(self.parent.hp/self.parent.max_hp), 4, nil, nil, self.parent.dead and bg[5] or (self.hfx.hit.f and fg[0] or _G[character_color_strings[self.parent.character]][-2]))
+      graphics.rectangle2(self.x - 7, self.y - 4, 14*(self.parent.hp/self.parent.max_hp), 4, nil, nil, self.parent.dead and bg[5] or (self.hfx.hit.f and fg[0] or color))
     end
     if not self.parent.dead then
-      graphics.line(self.x - 8, self.y + 5, self.x - 8 + 15.5*self.cooldown_ratio, self.y + 5, self.hfx.hit.f and fg[0] or _G[character_color_strings[self.parent.character]][-2], 2)
+      graphics.line(self.x - 8, self.y + 5, self.x - 8 + 15.5*self.cooldown_ratio, self.y + 5, self.hfx.hit.f and fg[0] or color, 2)
     end
   graphics.pop()
 
@@ -1201,7 +1210,7 @@ function CharacterHP:draw()
     graphics.push(p.x, p.y, 0, self.hfx.hit.x, self.hfx.hit.y)
       if not p.dead then
         graphics.line(p.x - 4, p.y + 8, p.x - 4 + 8, p.y + 8, self.hfx.hit.f and fg[0] or bg[-2], 2)
-        graphics.line(p.x - 4, p.y + 8, p.x - 4 + 8*self.cooldown_ratio, p.y + 8, self.hfx.hit.f and fg[0] or _G[character_color_strings[p.character]][-2], 2)
+        graphics.line(p.x - 4, p.y + 8, p.x - 4 + 8*self.cooldown_ratio, p.y + 8, self.hfx.hit.f and fg[0] or color, 2)
       end
     graphics.pop()
   end

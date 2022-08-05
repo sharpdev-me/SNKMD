@@ -7,6 +7,7 @@ function MainMenu:init(name)
 end
 
 
+
 function MainMenu:on_enter(from)
   slow_amount = 1
   trigger:tween(2, main_song_instance, {volume = 0.5, pitch = 1}, math.linear)
@@ -20,6 +21,7 @@ function MainMenu:on_enter(from)
   self.effects = Group()
   self.main_ui = Group():no_camera()
   self.ui = Group():no_camera()
+
   self.main:disable_collision_between('player', 'player')
   self.main:disable_collision_between('player', 'projectile')
   self.main:disable_collision_between('player', 'enemy_projectile')
@@ -36,6 +38,7 @@ function MainMenu:on_enter(from)
   self.main:disable_collision_between('ghost', 'enemy_projectile')
   self.main:disable_collision_between('ghost', 'ghost')
   self.main:disable_collision_between('ghost', 'force_field')
+
   self.main:enable_trigger_between('projectile', 'enemy')
   self.main:enable_trigger_between('enemy_projectile', 'player')
   self.main:enable_trigger_between('player', 'enemy_projectile')
@@ -100,13 +103,16 @@ function MainMenu:on_enter(from)
         'silencing_strike', 'culling_strike', 'lightning_strike', 'psycholeak', 'divine_blessing', 'hardening', 'kinetic_strike',
       }
       run_time = run.time or 0
-      gold = run.gold or 3
+      -- gold = run.gold or 3
+      gold = 300
       passives = run.passives or {}
       locked_state = run.locked_state
       current_new_game_plus = run.current_new_game_plus or current_new_game_plus or 0
       system.save_state()
+
       main:add(BuyScreen'buy_screen')
       main:go_to('buy_screen', run.level or 1, run.loop or 0, run.units or {}, passives, run.shop_level or 1, run.shop_xp or 0)
+      -- main:go_to('buy_screen', run.level or 1, run.loop or 0, units, passives, run.shop_level or 1, run.shop_xp or 0)
     end, text = Text({{text = '[wavy, ' .. tostring(state.dark_transitions and 'fg' or 'bg') .. ']starting...', font = pixul_font, alignment = 'center'}}, global_text_tags)}
   end}
   self.options_button = Button{group = self.main_ui, x = 47, y = gh/2 + 12, force_update = true, button_text = 'options', fg_color = 'bg10', bg_color = 'bg', action = function(b)
@@ -116,7 +122,18 @@ function MainMenu:on_enter(from)
       close_options(self)
     end
   end}
-  self.quit_button = Button{group = self.main_ui, x = 37, y = gh/2 + 34, force_update = true, button_text = 'quit', fg_color = 'bg10', bg_color = 'bg', action = function(b)
+  self.mods_button = Button{group = self.main_ui, x = 40, y = gh/2 + 34, force_update = true, button_text = "mods", fg_color = 'bg10', bg_color = 'bg', action = function(b)
+    ui_transition2:play{pith = random:float(0.95, 1.05), volume = 0.2}
+    ui_switch2:play{pitch = random:float(0.95, 1.05), volume = 0.5}
+    ui_switch1:play{pitch = random:float(0.95, 1.05), volume = 0.5}
+    TransitionEffect{group = main.transitions, x = gw/2, y = gh/2, color = state.dark_transitions and bg[-2] or fg[0], transition_action = function()
+      self.transitioning = true
+
+      main:add(ModMenu'mod_menu')
+      main:go_to('mod_menu')
+    end, text = Text({{text = '[wavy, ' .. tostring(state.dark_transitions and 'fg' or 'bg') .. ']loading...', font = pixul_font, alignment = 'center'}}, global_text_tags)}
+  end}
+  self.quit_button = Button{group = self.main_ui, x = 37, y = gh/2 + 56, force_update = true, button_text = 'quit', fg_color = 'bg10', bg_color = 'bg', action = function(b)
     system.save_state()
     steam.shutdown()
     love.event.quit()

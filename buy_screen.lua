@@ -269,9 +269,11 @@ end
 
 
 function BuyScreen:buy(character, i)
+  local modded = type(character == "table") and character.name ~= nil
+  local gold_cost = modded and character.tier or character_tiers[character]
   local bought
-  if table.any(self.units, function(v) return v.character == character end) and gold >= character_tiers[character] then
-    if table.any(self.units, function(v) return v.character == character and v.level == 3 end) then
+  if table.any(self.units, function(v) if modded then return v.hero:distinctName() == character:distinctName() else return v.character == v.character end end) and gold >= gold_cost then
+    if table.any(self.units, function(v) if modded then return (v.hero:distinctName() == character:distinctName()) and v.level == 3 else return (v.character == v.character) and v.level == 3 end end) then
       if not self.info_text then
         self.info_text = InfoText{group = main.current.ui}
         self.info_text:activate({
@@ -281,10 +283,10 @@ function BuyScreen:buy(character, i)
       end
       self.t:after(2, function() self.info_text:deactivate(); self.info_text.dead = true; self.info_text = nil end, 'info_text')
     else
-      gold = gold - character_tiers[character]
+      gold = gold - gold_cost
       self.shop_text:set_text{{text = '[wavy_mid, fg]shop [fg]- [fg, nudge_down]gold: [yellow, nudge_down]' .. gold, font = pixul_font, alignment = 'center'}}
       for _, unit in ipairs(self.units) do
-        if unit.character == character then
+        if (unit.character == character) or (modded and unit.hero:distinctName() == character:distinctName()) then
           if unit.level == 1 then
             unit.reserve[1] = unit.reserve[1] + 1
             if unit.reserve[1] > 1 then
@@ -321,10 +323,12 @@ function BuyScreen:buy(character, i)
       end
       self.t:after(2, function() self.info_text:deactivate(); self.info_text.dead = true; self.info_text = nil end, 'info_text')
     else
-      if gold >= character_tiers[character] then
-        gold = gold - character_tiers[character]
+      if gold >= gold_cost then
+        gold = gold - gold_cost
         self.shop_text:set_text{{text = '[wavy_mid, fg]shop [fg]- [fg, nudge_down]gold: [yellow, nudge_down]' .. gold, font = pixul_font, alignment = 'center'}}
-        table.insert(self.units, {character = character, level = 1, reserve = {0, 0}})
+        if modded then
+          table.insert(self.units, {character = character.name, level = 1, reserve = {0, 0}, hero = character})
+        else table.insert(self.units, {character = character, level = 1, reserve = {0, 0}}) end
         bought = true
       end
     end
@@ -350,12 +354,16 @@ function BuyScreen:set_cards(shop_level, dont_spawn_effect, first_call)
   local shop_level = shop_level or 1
   local tier_weights = level_to_shop_odds[shop_level]
   repeat 
-    unit_1 = random:table(tier_to_characters[random:weighted_pick(unpack(tier_weights))])
-    unit_2 = random:table(tier_to_characters[random:weighted_pick(unpack(tier_weights))])
-    unit_3 = random:table(tier_to_characters[random:weighted_pick(unpack(tier_weights))])
+    -- unit_1 = random:table(tier_to_characters[random:weighted_pick(unpack(tier_weights))])
+    -- unit_2 = random:table(tier_to_characters[random:weighted_pick(unpack(tier_weights))])
+    -- unit_3 = random:table(tier_to_characters[random:weighted_pick(unpack(tier_weights))])
+    unit_1 = ModLoader.randomHero(tier_weights)
+    unit_2 = ModLoader.randomHero(tier_weights)
+    unit_3 = ModLoader.randomHero(tier_weights)
     all_units = {unit_1, unit_2, unit_3}
   until not table.all(all_units, function(v) return table.any(non_attacking_characters, function(u) return v == u end) end)
   if first_call and locked_state then
+    -- TODO: handle locking modded units
     if locked_state.cards[1] then self.cards[1] = ShopCard{group = self.main, x = 60, y = 75, w = 80, h = 90, unit = locked_state.cards[1], parent = self, i = 1} end
     if locked_state.cards[2] then self.cards[2] = ShopCard{group = self.main, x = 140, y = 75, w = 80, h = 90, unit = locked_state.cards[2], parent = self, i = 2} end
     if locked_state.cards[3] then self.cards[3] = ShopCard{group = self.main, x = 220, y = 75, w = 80, h = 90, unit = locked_state.cards[3], parent = self, i = 3} end
@@ -372,7 +380,7 @@ function BuyScreen:set_party_and_sets()
   self.characters = {}
   local y = 40
   for i, unit in ipairs(self.units) do
-    table.insert(self.characters, CharacterPart{group = self.main, x = gw - 30, y = y + (i-1)*19, character = unit.character, level = unit.level, reserve = unit.reserve, i = i, spawn_effect = unit.spawn_effect, parent = self})
+    table.insert(self.characters, CharacterPart{group = self.main, x = gw - 30, y = y + (i-1)*19, character = unit.character, level = unit.level, reserve = unit.reserve, i = i, spawn_effect = unit.spawn_effect, hero = unit.hero, parent = self})
     unit.spawn_effect = false
   end
 
@@ -708,9 +716,12 @@ function GoButton:update(dt)
       ui_transition1:play{pitch = random:float(0.95, 1.05), volume = 0.5}
       self.transitioning = true
       system.save_run(self.parent.level, self.parent.loop, gold, self.parent.units, self.parent.passives, self.parent.shop_level, self.parent.shop_xp, run_passive_pool, locked_state)
+      print("before")
       TransitionEffect{group = main.transitions, x = self.x, y = self.y, color = state.dark_transitions and bg[-2] or character_colors[random:table(self.parent.units).character], transition_action = function()
+        print("during")
         main:add(Arena'arena')
         main:go_to('arena', self.parent.level, self.parent.loop, self.parent.units, self.parent.passives, self.parent.shop_level, self.parent.shop_xp, self.parent.locked)
+        print("after")
       end, text = Text({{text = '[wavy, ' .. tostring(state.dark_transitions and 'fg' or 'bg') .. ']level ' .. tostring(self.parent.level) .. '/' .. tostring(25*(self.parent.loop+1)), font = pixul_font, alignment = 'center'}}, global_text_tags)}
     end
 
@@ -1146,19 +1157,21 @@ function CharacterPart:init(args)
   self.shape = Rectangle(self.x, self.y, self.sx*20, self.sy*20)
   self.interact_with_mouse = true
   self.parts = {}
+  self.modded = self.hero ~= nil
   local x = self.x - 20
   if self.reserve then
     if self.reserve[2] and self.reserve[2] == 1 then
-      table.insert(self.parts, CharacterPart{group = main.current.main, x = x, y = self.y, character = self.character, level = 2, i = self.i, parent = self})
+      table.insert(self.parts, CharacterPart{group = main.current.main, x = x, y = self.y, character = self.character, level = 2, i = self.i, parent = self, hero = self.hero})
       x = x - 20
     end
     for i = 1, self.reserve and self.reserve[1] or 0 do
-      table.insert(self.parts, CharacterPart{group = main.current.main, x = x, y = self.y, character = self.character, level = 1, sx = 0.9, sy = 0.9, i = self.i, parent = self})
+      table.insert(self.parts, CharacterPart{group = main.current.main, x = x, y = self.y, character = self.character, level = 1, sx = 0.9, sy = 0.9, i = self.i, parent = self, hero = self.hero})
       x = x - 20
     end
   end
+  local color = self.modded and self.hero:getRenderColor() or character_colors[self.character]
   self.spring:pull(0.2, 200, 10)
-  if self.spawn_effect then SpawnEffect{group = main.current.effects, x = self.x, y = self.y, color = character_colors[self.character]} end
+  if self.spawn_effect then SpawnEffect{group = main.current.effects, x = self.x, y = self.y, color = color} end
   self.just_created = true
   self.t:after(0.1, function() self.just_created = false end)
 end
@@ -1243,8 +1256,8 @@ function CharacterPart:draw(y)
       graphics.print_centered(self.level, pixul_font, self.x + 0.5, self.y + 2, 0, 1, 1, 0, 0, bg[10])
       ]]--
     else
-      graphics.rectangle(self.x, self.y, 14, 14, 3, 3, self.highlighted and bg[10] or character_colors[self.character])
-      graphics.print_centered(self.level, pixul_font, self.x + 0.5, self.y + 2, 0, 1, 1, 0, 0, self.highlighted and bg[5] or _G[character_color_strings[self.character]][-5])
+      graphics.rectangle(self.x, self.y, 14, 14, 3, 3, self.highlighted and bg[10] or self.modded and self.hero:getRenderColor() or character_colors[self.character])
+      graphics.print_centered(self.level, pixul_font, self.x + 0.5, self.y + 2, 0, 1, 1, 0, 0, self.highlighted and bg[5] or (self.modded and self.hero:getDimColor() or _G[character_color_strings[self.character]][-5]))
     end
     if y then
       graphics.rectangle(self.x, y, 14, 14, 3, 3, bg[5])
@@ -1259,14 +1272,21 @@ function CharacterPart:on_mouse_enter()
   self.selected = true
   self.spring:pull(0.2, 200, 10)
   self.info_text = InfoText{group = main.current.ui, force_update = self.force_update}
+
+  local characterColorText = self.modded and self.hero:distinctName() or character_color_strings[self.character]
+  local classDisplayString = self.modded and self.hero:createClassString() or character_class_strings[self.character]
+  local characterDescription = self.modded and self.hero:getDescription() or character_descriptions[self.character](self.level)
+  local effectName = self.modded and self.hero:getLevelThree():getString(self.level == 3) or (self.level == 3 and character_effect_names[self.character] or character_effect_names_gray[self.character])
+  local effectDescription = self.modded and self.hero:getLevelThree():getDescription(self.level == 3) or (self.level == 3 and character_effect_descriptions[self.character]() or character_effect_descriptions_gray[self.character]())
+
   self.info_text:activate({
-    {text = '[' .. character_color_strings[self.character] .. ']' .. self.character:capitalize() .. '[fg] - [yellow]Lv.' .. self.level .. '[fg], tier [yellow]' .. character_tiers[self.character] .. '[fg] - sells for [yellow]' ..
+    {text = '[' .. characterColorText .. ']' .. (self.modded and self.hero:capitalize() or self.character:capitalize()) .. '[fg] - [yellow]Lv.' .. self.level .. '[fg], tier [yellow]' .. (self.modded and self.hero.tier or character_tiers[self.character]) .. '[fg] - sells for [yellow]' ..
       self:get_sale_price(), font = pixul_font, alignment = 'center', height_multiplier = 1.25},
-    {text = '[fg]Classes: ' .. character_class_strings[self.character], font = pixul_font, alignment = 'center', height_multiplier = 1.25},
-    {text = character_descriptions[self.character](self.level), font = pixul_font, alignment = 'center', height_multiplier = 2},
+    {text = '[fg]Classes: ' .. classDisplayString, font = pixul_font, alignment = 'center', height_multiplier = 1.25},
+    {text = characterDescription, font = pixul_font, alignment = 'center', height_multiplier = 2},
     {text = '[' .. (self.level == 3 and 'yellow' or 'light_bg') .. ']Lv.3 [' .. (self.level == 3 and 'fg' or 'light_bg') .. ']Effect - ' .. 
-      (self.level == 3 and character_effect_names[self.character] or character_effect_names_gray[self.character]), font = pixul_font, alignment = 'center', height_multiplier = 1.25},
-    {text = (self.level == 3 and character_effect_descriptions[self.character]() or character_effect_descriptions_gray[self.character]()), font = pixul_font, alignment = 'center'},
+      effectName, font = pixul_font, alignment = 'center', height_multiplier = 1.25},
+    {text = effectDescription, font = pixul_font, alignment = 'center'},
   }, nil, nil, nil, nil, 16, 4, nil, 2)
   self.info_text.x, self.info_text.y = gw/2, gh/2 + 10
 
@@ -1283,12 +1303,12 @@ end
 
 
 function CharacterPart:get_sale_price()
-  if not character_tiers[self.character] then return 0 end
+  local cost = self.modded and self.hero.tier or character_tiers[self.character]
   local total = 0
-  total = total + ((self.level == 1 and character_tiers[self.character]) or (self.level == 2 and 2*character_tiers[self.character]) or (self.level == 3 and 6*character_tiers[self.character]) or 0)
+  total = total + ((self.level == 1 and cost) or (self.level == 2 and 2*cost) or (self.level == 3 and 6*cost) or 0)
   if self.reserve then
-    if self.reserve[2] then total = total + self.reserve[2]*character_tiers[self.character]*2 end
-    if self.reserve[1] then total = total + self.reserve[1]*character_tiers[self.character] end
+    if self.reserve[2] then total = total + self.reserve[2]*cost*2 end
+    if self.reserve[1] then total = total + self.reserve[1]*cost end
   end
   return total
 end
@@ -1582,13 +1602,21 @@ function ShopCard:init(args)
   self.interact_with_mouse = true
   self.character_icon = CharacterIcon{group = main.current.effects, x = self.x, y = self.y - 26, character = self.unit, parent = self}
   self.class_icons = {}
-  for i, class in ipairs(character_classes[self.unit]) do
+  local isModded = type(self.unit) == "table" and self.unit.name ~= nil
+  self.modded = isModded
+  local classes = {}
+  if isModded and self.unit.classes then
+    classes = self.unit.classes
+  else
+    classes = character_classes[self.unit]
+  end
+  for i, class in ipairs(classes) do
     local x = self.x
-    if #character_classes[self.unit] == 2 then x = self.x - 10
-    elseif #character_classes[self.unit] == 3 then x = self.x - 20 end
+    if #classes == 2 then x = self.x - 10
+    elseif #classes == 3 then x = self.x - 20 end
     table.insert(self.class_icons, ClassIcon{group = main.current.effects, x = x + (i-1)*20, y = self.y + 6, class = class, character = self.unit, units = self.parent.units, parent = self})
   end
-  self.cost = character_tiers[self.unit]
+  if isModded then self.cost = self.unit.tier else self.cost = character_tiers[self.unit] end
   self.spring:pull(0.2, 200, 10)
   self:refresh()
 end
@@ -1657,6 +1685,7 @@ end
 
 
 function ShopCard:draw()
+  local color = self.modded and self.unit:getRenderColor() or character_colors[self.unit]
   graphics.push(self.x, self.y, 0, self.sx*self.spring.x, self.sy*self.spring.x)
     if self.selected then
       graphics.rectangle(self.x, self.y, self.w, self.h, 6, 6, bg[-1])
@@ -1664,31 +1693,31 @@ function ShopCard:draw()
     if self.owned then
       local x, y = self.x + self.w/5, self.y - self.h/2 + 12
       if self.owned_n == 1 then
-        graphics.rectangle(x, y, 2, 2, nil, nil, character_colors[self.unit])
+        graphics.rectangle(x, y, 2, 2, nil, nil, color)
       elseif self.owned_n == 2 then
-        graphics.rectangle(x, y, 2, 2, nil, nil, character_colors[self.unit])
-        graphics.rectangle(x + 4, y, 2, 2, nil, nil, character_colors[self.unit])
+        graphics.rectangle(x, y, 2, 2, nil, nil, color)
+        graphics.rectangle(x + 4, y, 2, 2, nil, nil, color)
       elseif self.owned_n == 3 then
-        graphics.rectangle(x, y, 4, 4, nil, nil, character_colors[self.unit])
+        graphics.rectangle(x, y, 4, 4, nil, nil, color)
       elseif self.owned_n == 4 then
-        graphics.rectangle(x, y, 4, 4, nil, nil, character_colors[self.unit])
-        graphics.rectangle(x + 5, y, 2, 2, nil, nil, character_colors[self.unit])
+        graphics.rectangle(x, y, 4, 4, nil, nil, color)
+        graphics.rectangle(x + 5, y, 2, 2, nil, nil, color)
       elseif self.owned_n == 5 then
-        graphics.rectangle(x, y, 4, 4, nil, nil, character_colors[self.unit])
-        graphics.rectangle(x + 5, y, 2, 2, nil, nil, character_colors[self.unit])
-        graphics.rectangle(x + 9, y, 2, 2, nil, nil, character_colors[self.unit])
+        graphics.rectangle(x, y, 4, 4, nil, nil, color)
+        graphics.rectangle(x + 5, y, 2, 2, nil, nil, color)
+        graphics.rectangle(x + 9, y, 2, 2, nil, nil, color)
       elseif self.owned_n == 6 then
-        graphics.rectangle(x, y, 4, 4, nil, nil, character_colors[self.unit])
-        graphics.rectangle(x + 6, y, 4, 4, nil, nil, character_colors[self.unit])
+        graphics.rectangle(x, y, 4, 4, nil, nil, color)
+        graphics.rectangle(x + 6, y, 4, 4, nil, nil, color)
       elseif self.owned_n == 7 then
-        graphics.rectangle(x, y, 4, 4, nil, nil, character_colors[self.unit])
-        graphics.rectangle(x + 6, y, 4, 4, nil, nil, character_colors[self.unit])
-        graphics.rectangle(x + 11, y, 2, 2, nil, nil, character_colors[self.unit])
+        graphics.rectangle(x, y, 4, 4, nil, nil, color)
+        graphics.rectangle(x + 6, y, 4, 4, nil, nil, color)
+        graphics.rectangle(x + 11, y, 2, 2, nil, nil, color)
       elseif self.owned_n == 8 then
-        graphics.rectangle(x, y, 4, 4, nil, nil, character_colors[self.unit])
-        graphics.rectangle(x + 6, y, 4, 4, nil, nil, character_colors[self.unit])
-        graphics.rectangle(x + 11, y, 2, 2, nil, nil, character_colors[self.unit])
-        graphics.rectangle(x + 15, y, 2, 2, nil, nil, character_colors[self.unit])
+        graphics.rectangle(x, y, 4, 4, nil, nil, color)
+        graphics.rectangle(x + 6, y, 4, 4, nil, nil, color)
+        graphics.rectangle(x + 11, y, 2, 2, nil, nil, color)
+        graphics.rectangle(x + 15, y, 2, 2, nil, nil, color)
       end
     end
   graphics.pop()
@@ -1734,7 +1763,12 @@ function CharacterIcon:init(args)
   self:init_game_object(args)
   self.shape = Rectangle(self.x, self.y, 40, 20)
   self.interact_with_mouse = true
-  self.character_text = Text({{text = '[' .. character_color_strings[self.character] .. ']' .. string.lower(character_names[self.character]), font = pixul_font, alignment = 'center'}}, global_text_tags)
+  self.modded = type(self.character) == "table" and self.character.name ~= nil
+  if self.modded then
+    self.character_text = Text({{text = '[' .. self.character:distinctName() .. ']' .. string.gsub(string.lower(self.character.name), "_", " "), font = pixul_font, alignment = "center"}}, global_text_tags)
+  else
+    self.character_text = Text({{text = '[' .. character_color_strings[self.character] .. ']' .. string.lower(character_names[self.character]), font = pixul_font, alignment = 'center'}}, global_text_tags)
+  end
 end
 
 
@@ -1745,9 +1779,12 @@ end
 
 
 function CharacterIcon:draw()
+  local textColor, color
+  if self.modded then textColor = self.character:getDimColor() else textColor = _G[character_color_strings[self.character]][-5] end
+  if self.modded then color = self.character:getRenderColor() else color = character_colors[self.character] end
   graphics.push(self.x, self.y, 0, self.sx*self.spring.x, self.sy*self.spring.x)
-    graphics.rectangle(self.x, self.y - 7, 14, 14, 3, 3, character_colors[self.character])
-    graphics.print_centered(self.parent.cost, pixul_font, self.x + 0.5, self.y - 5, 0, 1, 1, 0, 0, _G[character_color_strings[self.character]][-5])
+    graphics.rectangle(self.x, self.y - 7, 14, 14, 3, 3, color)
+    graphics.print_centered(self.parent.cost, pixul_font, self.x + 0.5, self.y - 5, 0, 1, 1, 0, 0, textColor)
     self.character_text:draw(self.x, self.y + 10)
   graphics.pop()
 end
@@ -1757,13 +1794,20 @@ function CharacterIcon:on_mouse_enter()
   ui_hover1:play{pitch = random:float(1.3, 1.5), volume = 0.5}
   self.spring:pull(0.2, 200, 10)
   self.info_text = InfoText{group = main.current.ui}
+  local modded = type(self.character == "table") and self.character.name ~= nil
+  local characterColorText = modded and self.character:distinctName() or character_color_strings[self.character]
+  local classDisplayString = modded and self.character:createClassString() or character_class_strings[self.character]
+  local characterDescription = modded and self.character:getDescription() or character_descriptions[self.character](1)
+  local effectName = modded and self.character:getLevelThree():getString(self.level == 3) or (self.level == 3 and character_effect_names[self.character] or character_effect_names_gray[self.character])
+  local effectDescription = modded and self.character:getLevelThree():getDescription(self.level == 3) or (self.level == 3 and character_effect_descriptions[self.character]() or character_effect_descriptions_gray[self.character]())
+  
   self.info_text:activate({
-    {text = '[' .. character_color_strings[self.character] .. ']' .. self.character:capitalize() .. '[fg] - cost: [yellow]' .. self.parent.cost, font = pixul_font, alignment = 'center', height_multiplier = 1.25},
-    {text = '[fg]Classes: ' .. character_class_strings[self.character], font = pixul_font, alignment = 'center', height_multiplier = 1.25},
-    {text = character_descriptions[self.character](1), font = pixul_font, alignment = 'center', height_multiplier = 2},
+    {text = '[' .. characterColorText .. ']' .. string.gsub(self.character:capitalize(), "_", " ") .. '[fg] - cost: [yellow]' .. self.parent.cost, font = pixul_font, alignment = 'center', height_multiplier = 1.25},
+    {text = '[fg]Classes: ' .. classDisplayString, font = pixul_font, alignment = 'center', height_multiplier = 1.25},
+    {text = characterDescription, font = pixul_font, alignment = 'center', height_multiplier = 2},
     {text = '[' .. (self.level == 3 and 'yellow' or 'light_bg') .. ']Lv.3 [' .. (self.level == 3 and 'fg' or 'light_bg') .. ']Effect - ' .. 
-      (self.level == 3 and character_effect_names[self.character] or character_effect_names_gray[self.character]), font = pixul_font, alignment = 'center', height_multiplier = 1.25},
-    {text = (self.level == 3 and character_effect_descriptions[self.character]() or character_effect_descriptions_gray[self.character]()), font = pixul_font, alignment = 'center'},
+      effectName, font = pixul_font, alignment = 'center', height_multiplier = 1.25},
+    {text = effectDescription, font = pixul_font, alignment = 'center'},
     -- {text = character_stats[self.character](1), font = pixul_font, alignment = 'center'},
   }, nil, nil, nil, nil, 16, 4, nil, 2)
   self.info_text.x, self.info_text.y = gw/2, gh/2 + 10

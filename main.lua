@@ -7,10 +7,12 @@ require 'objects'
 require 'player'
 require 'enemies'
 require 'media'
+require 'modloader.modloader'
 
 
 function init()
   shared_init()
+  ModLoader.load()
 
   input:bind('move_left', {'a', 'left', 'dpleft', 'm1'})
   input:bind('move_right', {'d', 'e', 's', 'right', 'dpright', 'm2'})
@@ -572,6 +574,7 @@ function init()
     ['thief'] = '[red]Rogue, [yellow2]Mercenary',
   }
 
+
   get_character_stat_string = function(character, level)
     local group = Group():set_as_physics_world(32, 0, 0, {'player', 'enemy', 'projectile', 'enemy_projectile'})
     local player = Player{group = group, leader = true, character = character, level = level, follower_index = 1}
@@ -1103,23 +1106,63 @@ function init()
     local mercenaries = 0
     local explorers = 0
     for _, unit in ipairs(units) do
-      for _, unit_class in ipairs(character_classes[unit.character]) do
-        if unit_class == 'ranger' then rangers = rangers + 1 end
-        if unit_class == 'warrior' then warriors = warriors + 1 end
-        if unit_class == 'healer' then healers = healers + 1 end
-        if unit_class == 'mage' then mages = mages + 1 end
-        if unit_class == 'nuker' then nukers = nukers + 1 end
-        if unit_class == 'conjurer' then conjurers = conjurers + 1 end
-        if unit_class == 'rogue' then rogues = rogues + 1 end
-        if unit_class == 'enchanter' then enchanters = enchanters + 1 end
-        if unit_class == 'psyker' then psykers = psykers + 1 end
-        if unit_class == 'curser' then cursers = cursers + 1 end
-        if unit_class == 'forcer' then forcers = forcers + 1 end
-        if unit_class == 'swarmer' then swarmers = swarmers + 1 end
-        if unit_class == 'voider' then voiders = voiders + 1 end
-        if unit_class == 'sorcerer' then sorcerers = sorcerers + 1 end
-        if unit_class == 'mercenary' then mercenaries = mercenaries + 1 end
-        if unit_class == 'explorer' then explorers = explorers + 1 end
+      if unit.hero then
+        for _, unit_class in ipairs(unit.hero.classes) do
+          if unit_class == 'ranger' then rangers = rangers + 1 end
+          if unit_class == 'warrior' then warriors = warriors + 1 end
+          if unit_class == 'healer' then healers = healers + 1 end
+          if unit_class == 'mage' then mages = mages + 1 end
+          if unit_class == 'nuker' then nukers = nukers + 1 end
+          if unit_class == 'conjurer' then conjurers = conjurers + 1 end
+          if unit_class == 'rogue' then rogues = rogues + 1 end
+          if unit_class == 'enchanter' then enchanters = enchanters + 1 end
+          if unit_class == 'psyker' then psykers = psykers + 1 end
+          if unit_class == 'curser' then cursers = cursers + 1 end
+          if unit_class == 'forcer' then forcers = forcers + 1 end
+          if unit_class == 'swarmer' then swarmers = swarmers + 1 end
+          if unit_class == 'voider' then voiders = voiders + 1 end
+          if unit_class == 'sorcerer' then sorcerers = sorcerers + 1 end
+          if unit_class == 'mercenary' then mercenaries = mercenaries + 1 end
+          if unit_class == 'explorer' then explorers = explorers + 1 end
+        end
+      elseif type(unit) == "table" and unit.name ~= nil then
+        for _, unit_class in ipairs(unit.classes) do
+          if unit_class == 'ranger' then rangers = rangers + 1 end
+          if unit_class == 'warrior' then warriors = warriors + 1 end
+          if unit_class == 'healer' then healers = healers + 1 end
+          if unit_class == 'mage' then mages = mages + 1 end
+          if unit_class == 'nuker' then nukers = nukers + 1 end
+          if unit_class == 'conjurer' then conjurers = conjurers + 1 end
+          if unit_class == 'rogue' then rogues = rogues + 1 end
+          if unit_class == 'enchanter' then enchanters = enchanters + 1 end
+          if unit_class == 'psyker' then psykers = psykers + 1 end
+          if unit_class == 'curser' then cursers = cursers + 1 end
+          if unit_class == 'forcer' then forcers = forcers + 1 end
+          if unit_class == 'swarmer' then swarmers = swarmers + 1 end
+          if unit_class == 'voider' then voiders = voiders + 1 end
+          if unit_class == 'sorcerer' then sorcerers = sorcerers + 1 end
+          if unit_class == 'mercenary' then mercenaries = mercenaries + 1 end
+          if unit_class == 'explorer' then explorers = explorers + 1 end
+        end
+      else
+        for _, unit_class in ipairs(character_classes[unit.character]) do
+          if unit_class == 'ranger' then rangers = rangers + 1 end
+          if unit_class == 'warrior' then warriors = warriors + 1 end
+          if unit_class == 'healer' then healers = healers + 1 end
+          if unit_class == 'mage' then mages = mages + 1 end
+          if unit_class == 'nuker' then nukers = nukers + 1 end
+          if unit_class == 'conjurer' then conjurers = conjurers + 1 end
+          if unit_class == 'rogue' then rogues = rogues + 1 end
+          if unit_class == 'enchanter' then enchanters = enchanters + 1 end
+          if unit_class == 'psyker' then psykers = psykers + 1 end
+          if unit_class == 'curser' then cursers = cursers + 1 end
+          if unit_class == 'forcer' then forcers = forcers + 1 end
+          if unit_class == 'swarmer' then swarmers = swarmers + 1 end
+          if unit_class == 'voider' then voiders = voiders + 1 end
+          if unit_class == 'sorcerer' then sorcerers = sorcerers + 1 end
+          if unit_class == 'mercenary' then mercenaries = mercenaries + 1 end
+          if unit_class == 'explorer' then explorers = explorers + 1 end
+        end
       end
     end
     return {ranger = rangers, warrior = warriors, healer = healers, mage = mages, nuker = nukers, conjurer = conjurers, rogue = rogues,
@@ -1709,12 +1752,6 @@ function init()
   main:add(MainMenu'mainmenu')
   main:go_to('mainmenu')
 
-  --[[
-  main:add(BuyScreen'buy_screen')
-  main:go_to('buy_screen', run.level or 1, run.units or {}, passives, run.shop_level or 1, run.shop_xp or 0)
-  -- main:go_to('buy_screen', 7, run.units or {}, {'unleash'})
-  ]]--
-  
   --[[
   gold = 10
   run_passive_pool = {

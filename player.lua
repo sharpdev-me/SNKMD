@@ -14,6 +14,11 @@ function Player:init(args)
   self.classes = character_classes[self.character]
   self.damage_dealt = 0
 
+  if self.hero then self.color = self.hero:getColor() end
+  if self.hero then self.classes = self.hero.classes end
+
+  if self.hero and self.hero.init then self.hero:init(self) end
+
   if self.character == 'vagrant' then
     self.attack_sensor = Circle(self.x, self.y, 96)
     self.t:cooldown(2, function() local enemies = self:get_objects_in_shape(self.attack_sensor, main.current.enemies); return enemies and #enemies > 0 end, function()
@@ -1147,6 +1152,8 @@ end
 function Player:update(dt)
   self:update_game_object(dt)
 
+  if self.hero and self.hero.update then self.hero:update() end
+
   if self.character == 'squire' then
     local all_units = self:get_all_units()
     for _, unit in ipairs(all_units) do
@@ -1439,8 +1446,8 @@ function Player:draw()
 
     if self.leader and state.arrow_snake then
       local x, y = self.x + 0.9*self.shape.w, self.y
-      graphics.line(x + 3, y, x, y - 3, character_colors[self.character], 1)
-      graphics.line(x + 3, y, x, y + 3, character_colors[self.character], 1)
+      graphics.line(x + 3, y, x, y - 3, self.color, 1)
+      graphics.line(x + 3, y, x, y + 3, self.color, 1)
     end
 
     if self.ouroboros_def_m and self.ouroboros_def_m > 1 then
@@ -1455,6 +1462,7 @@ function Player:draw()
       graphics.rectangle(self.x, self.y, 1.25*self.shape.w, 1.25*self.shape.h, 3, 3, blue_transparent)
     end
   end
+  if self.hero and self.hero.draw then self.hero:draw() end
   graphics.pop()
 end
 
@@ -1530,6 +1538,8 @@ function Player:hit(damage, from_undead)
   _G[random:table{'player_hit1', 'player_hit2'}]:play{pitch = random:float(0.95, 1.05), volume = 0.5}
   camera:shake(4, 0.5)
   main.current.damage_taken = main.current.damage_taken + actual_damage
+
+  if self.hero and self.hero.hit then self.hero:hit(actual_damage, from_undead) end
 
   if self.payback and table.any(self.classes, function(v) return v == 'enchanter' end) then
     local units = self:get_all_units()
@@ -1797,11 +1807,14 @@ function Player:shoot(r, mods)
   local crit = false
   if self.character == 'beastmaster' then crit = random:bool(10) end
   if self.chance_to_crit and random:bool(self.chance_to_crit) then dmg_m = ((self.assassination == 1 and 8) or (self.assassination == 2 and 10) or (self.assassination == 3 and 12) or 4); crit = true end
+
   if self.assassination and table.any(self.classes, function(v) return v == 'rogue' end) then
     if not crit then
       dmg_m = 0.5
     end
   end
+
+  if self.hero and self.hero.shoot then self.hero:shoot(self, dmg_m, crit, r, mods) end
 
   if self.character == 'thief' then
     dmg_m = dmg_m*2
@@ -1874,7 +1887,7 @@ function Player:shoot(r, mods)
         end
       end, 20)
     end
-  else
+  elseif not self.hero then
     HitCircle{group = main.current.effects, x = self.x + 0.8*self.shape.w*math.cos(r), y = self.y + 0.8*self.shape.w*math.sin(r), rs = 6}
     local t = {group = main.current.main, x = self.x + 1.6*self.shape.w*math.cos(r), y = self.y + 1.6*self.shape.w*math.sin(r), v = 250, r = r, color = self.color, dmg = self.dmg*dmg_m, crit = crit, character = self.character,
     parent = self, level = self.level}
@@ -1921,6 +1934,8 @@ function Player:attack(area, mods)
   local t = {group = main.current.effects, x = mods.x or self.x, y = mods.y or self.y, r = self.r, w = self.area_size_m*(area or 64), color = self.color, dmg = self.area_dmg_m*self.dmg,
     character = self.character, level = self.level, parent = self}
   Area(table.merge(t, mods))
+
+  if self.hero and self.hero.attack then self.hero:attack() end
 
   if self.character == 'swordsman' or self.character == 'barbarian' or self.character == 'juggernaut' or self.character == 'highlander' then
     _G[random:table{'swordsman1', 'swordsman2'}]:play{pitch = random:float(0.9, 1.1), volume = 0.75}

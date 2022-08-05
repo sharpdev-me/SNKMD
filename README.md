@@ -1,20 +1,50 @@
+# SNKMD
 
-
-
-
-# SNKRX
-
-[SNKRX](https://store.steampowered.com/app/915310/SNKRX/) is an arcade shooter roguelite where you control a snake of heroes that automatically attack nearby enemies.
+This is a *very* work in progress modloader for [SNKRX](https://store.steampowered.com/app/915310/SNKRX/), an arcade shooter roguelite where you control a snake of heroes that automatically attack nearby enemies.
 Combine different heroes to unlock class bonuses and create unique builds, and steer your unstoppable party as they ravage through endless waves of enemies.
 
-https://user-images.githubusercontent.com/409773/119258159-ea982b00-bb9e-11eb-8082-37e2c65591ea.mp4
+## About
 
-[**Check it out on Steam!**](https://store.steampowered.com/app/915310/SNKRX/)
+I recently bought SNKRX and after playing a few times, I got a little bored of the repitition. That's why I decided to create a modloader. This repository is a patched version of the [SNKRX source](https://github.com/a327ex/SNKRX). I hope for it to be similar to Forge for Minecraft. An API will be provided that will make creating things like units, classes, and enemies much easier (the organization of SNKRX's code is a *little* messy).
 
-### Running
+## Wiki
 
+Wiki will be coming soon, after the API is finished.
+
+## Creating Mods
+
+Mods are distributed as .zip files placed in the `mods/` folder in the SNKRX save location (`C:\Users\<user>\AppData\Roaming\LOVE\SNKRX\mods` or `~/.local/share/love/SNKRX/mods`). The modloader then unpacks this zip file into a folder on its first load.
+
+To develop a mod, the first file you need is `mod_data.txt`. This file should go in the root of your mod's directory. The simplest example of this file is as follows:
+```
+name=ExampleMod
+main=main.lua
+```
+
+`name=` is the name of your mod, and `main=` is the path to the file that is executed on game launch
+
+An example mod can be found [here](https://github.com/sharpdev-me/SNKMD-Example).
+
+<hr/>
+
+## Current Plans
+
+- There is currently an issue with the graphics in the shop that need to be resolved
+- A little more effort in reworking the code to support modded units
+- Custom classes
+- Create an API, similar to how programs like tModLoader and Forge work
+- Create a wiki for mod developers
+
+<hr/>
+
+## Running
+
+### Windows
 Download this repository, `cd` into it and then run `engine/love/love.exe --console .`. You need to have Steam up to run it successfully.
 
-### LICENSE
+### Linux
+Download this repository and `cd` into it. You will need to install `luasteam.so` for LOVE and `libsteam_api.so` from the Steamworks SDK. A tutorial will be provided in the future. You can then run `love --console .` to run LOVE in the current directory.
+
+## LICENSE
 
 All assets have their specific licenses and they are linked to in the game's credits. All code is under the MIT license.
