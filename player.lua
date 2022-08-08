@@ -17,7 +17,29 @@ function Player:init(args)
   if self.hero then self.color = self.hero:getColor() end
   if self.hero then self.classes = self.hero.classes end
 
-  if self.hero and self.hero.init then self.hero:init(self) end
+  if self.hero and self.hero.init then
+    self.hero:init(self)
+
+    if self.hero.act_cooldown > 0 then
+      self.t:every(self.hero.act_cooldown, function()
+        self.hero:act(self)
+        -- fix this in class revamp
+        if table.any(self.classes, function(v) return v == "sorcerer" end) then
+          if main.current.sorcerer_level > 0 then
+            self.sorcerer_count = self.sorcerer_count + 1
+            if self.sorcerer_count >= ((main.current.sorcerer_level == 3 and 2) or (main.current.sorcerer_level == 2 and 3) or (main.current.sorcerer_level == 1 and 4)) then
+              self.sorcerer_count = 0
+              if self.hero.s_repeat then 
+                self.hero.s_repeat(self)
+              else
+                self.hero:act(self)
+              end
+            end
+          end
+        end
+      end, nil, nil, "act")
+    end
+  end
 
   if self.character == 'vagrant' then
     self.attack_sensor = Circle(self.x, self.y, 96)
@@ -1605,7 +1627,7 @@ function Player:hit(damage, from_undead)
 
   self.character_hp:change_hp()
 
-  if self.hp <= 0 then
+  if self.hp <= 0 and not ModLoader.pushEvent("player_die", self).cancelled then
     if self.divined then
       self:heal(self.max_hp)
       heal1:play{pitch = random:float(0.95, 1.05), volume = 0.5}
@@ -1814,8 +1836,6 @@ function Player:shoot(r, mods)
     end
   end
 
-  if self.hero and self.hero.shoot then self.hero:shoot(self, dmg_m, crit, r, mods) end
-
   if self.character == 'thief' then
     dmg_m = dmg_m*2
     if self.level == 3 and crit then
@@ -1887,7 +1907,9 @@ function Player:shoot(r, mods)
         end
       end, 20)
     end
-  elseif not self.hero then
+  elseif self.hero and self.hero.shoot then
+    self.hero:shoot(self, dmg_m, crit, r, mods)
+  else
     HitCircle{group = main.current.effects, x = self.x + 0.8*self.shape.w*math.cos(r), y = self.y + 0.8*self.shape.w*math.sin(r), rs = 6}
     local t = {group = main.current.main, x = self.x + 1.6*self.shape.w*math.cos(r), y = self.y + 1.6*self.shape.w*math.sin(r), v = 250, r = r, color = self.color, dmg = self.dmg*dmg_m, crit = crit, character = self.character,
     parent = self, level = self.level}

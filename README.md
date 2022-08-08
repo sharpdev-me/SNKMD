@@ -34,6 +34,10 @@ An example mod can be found [here](https://github.com/sharpdev-me/SNKMD-Example)
 - Create an API, similar to how programs like tModLoader and Forge work
 - Create a wiki for mod developers
 
+## Mod Ideas
+
+I need to know what I need to implement in the API, so please let me know about any ideas you have! You can either send me a message on Discord (SharpDev#1101), or you can open an Issue here on GitHub. Thank you!
+
 <hr/>
 
 ## Running

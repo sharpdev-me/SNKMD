@@ -1,4 +1,5 @@
 local ModTypes = require 'modloader.modtypes'
+local ModShapes = require 'modloader.modshapes'
 
 return function(data)
     local mod = {}
@@ -24,9 +25,35 @@ return function(data)
         return love.filesystem.getSaveDirectory() .. "/" .. self._mod_folder
     end
 
+    function mod:getConfiguration()
+        if mod.configuration then
+            return mod.configuration
+        else
+            local configPath = self:getConfigurationFolder() .. "/config.lua"
+            local configChunk, err = love.filesystem.load(configPath)
+            if not configChunk then
+                self:error(err)
+                return nil, err
+            end
+
+            mod.configuration = configChunk()
+
+            return mod.configuration
+        end
+    end
+
+    function mod:addEventHandler(eventName, handler)
+        return ModLoader.addEventHandler(eventName, handler)
+    end
+
     function mod:log(msg)
         io.stdout:write("[" .. self.name .. "] " .. msg .. "\n")
         io.stdout:flush()
+    end
+
+    function mod:error(msg)
+        io.stderr:write("[" .. self.name .. "][ERROR] " .. msg .. "\n")
+        io.stderr:flush()
     end
 
     function mod:createHero(definition)
@@ -45,15 +72,6 @@ return function(data)
         global_text_tags[hero:distinctName()] = TextTag{draw = function(c, i, text) graphics.set_color(hero:getRenderColor()) end}
 
         return hero
-    end
-
-    function mod:getConfiguration()
-        if mod.configuration then
-            return mod.configuration
-        else
-            local configPath = self:getConfigurationFolder() .. "/config.lua"
-            local configuration = {}
-        end
     end
 
     return mod

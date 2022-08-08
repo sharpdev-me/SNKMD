@@ -8,6 +8,7 @@ local createGlobals = require("modloader.modglobals")
 
 ModLoader.loadedMods = {}
 ModLoader.heroTierMap = {}
+ModLoader.eventHandlers = {}
 
 function ModLoader.load()
     -- initialize ModLoader state
@@ -28,7 +29,11 @@ function ModLoader.load()
                 if r then ModLoader.loadMod(r) end
             end
         end
+
+        ModLoader.pushEvent("mods_loaded", unpack(ModLoader.loadedMods))
     end
+
+    ModLoader.pushEvent("modloader_done")
 end
 
 function ModLoader.getModsFolder()
@@ -229,6 +234,44 @@ function ModLoader.isCharacterModded(character)
     return type(character) == "table" and character.name ~= nil
 end
 
+function ModLoader.addEventHandler(eventName, handler)
+    if not ModLoader.eventHandlers[eventName] then ModLoader.eventHandlers[eventName] = {} end
+    local eventHandler = {
+        eventName = eventName,
+        handler = handler,
+
+        cancel = function(self)
+            local t = ModLoader.eventHandlers[self.eventName]
+            table.remove(t, table.index(t, self))
+        end
+    }
+
+    table.insert(ModLoader.eventHandlers[eventName], eventHandler)
+
+    return eventHandler
+end
+
+function ModLoader.pushEvent(eventName, ...)
+    local event = {cancelled = false}
+    for _,h in pairs(ModLoader.eventHandlers[eventName] or {}) do
+        h.handler(h, event, ...)
+        if event.cancelled then break end
+    end
+    return event
+end
+
+function ModLoader.convertForStringification(unit)
+    local u = {
+        name = unit.hero.name,
+        mod = unit.hero.mod.name
+    }
+
+    local uu = table.shallow_copy(unit)
+    uu.hero = u
+
+    return uu
+end
+
 function ModLoader.stringifyRun(run)
     if run.units then
         local newUnits = table.shallow_copy(run.units)
@@ -236,13 +279,7 @@ function ModLoader.stringifyRun(run)
 
         for _, unit in ipairs(newUnits) do
             if unit.hero then
-                local u = {
-                    name = unit.hero.name,
-                    mod = unit.hero.mod.name
-                }
-
-                local uu = table.shallow_copy(unit)
-                uu.hero = u
+                local uu = ModLoader.convertForStringification(unit)
                 table.insert(run.units, uu)
             else
                 table.insert(run.units, unit)
@@ -250,7 +287,27 @@ function ModLoader.stringifyRun(run)
         end
     end
 
-    return table.tostring(run)
+    local newCards
+    if run.locked_state then
+        newCards = table.shallow_copy(run.locked_state.cards)
+        run.locked_state.cards = {}
+
+        for _, card in ipairs(newCards) do
+            if ModLoader.isCharacterModded(card) then
+                local u = {
+                    name = card.name,
+                    mod = card.mod.name
+                }
+                table.insert(run.locked_state.cards, u)
+            else
+                table.insert(run.locked_state.cards, card)
+            end
+        end
+    end
+
+    local r = table.tostring(run)
+    if run.locked_state then run.locked_state.cards = newCards end
+    return r
 end
 
 function ModLoader.parse_run(run)
@@ -268,6 +325,22 @@ function ModLoader.parse_run(run)
             end
 
             if add then table.insert(run.units, unit) end
+        end
+    end
+
+    if run.locked_state then
+        local newCards = table.shallow_copy(run.locked_state.cards)
+        run.locked_state.cards = {}
+
+        for _, card in ipairs(newCards) do
+            if type(card) == "table" then
+                local mod = ModLoader.loadedMods[card.mod]
+                if mod then
+                    table.insert(run.locked_state.cards, mod._heroes[card.name])
+                end
+            else
+                table.insert(run.locked_state.cards, card)
+            end
         end
     end
 

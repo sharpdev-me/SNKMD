@@ -205,6 +205,10 @@ function BuyScreen:update(dt)
     self:quit_tutorial()
   end
 
+  if input.h.pressed and not self.transitioning and not self.in_tutorial then
+    self:gain_gold(500)
+  end
+
   if input.escape.pressed and not self.transitioning and not self.in_tutorial then
     if not self.paused then
       open_options(self)
@@ -717,12 +721,9 @@ function GoButton:update(dt)
       ui_transition1:play{pitch = random:float(0.95, 1.05), volume = 0.5}
       self.transitioning = true
       system.save_run(self.parent.level, self.parent.loop, gold, self.parent.units, self.parent.passives, self.parent.shop_level, self.parent.shop_xp, run_passive_pool, locked_state)
-      print("before")
       TransitionEffect{group = main.transitions, x = self.x, y = self.y, color = state.dark_transitions and bg[-2] or character_colors[random:table(self.parent.units).character], transition_action = function()
-        print("during")
         main:add(Arena'arena')
         main:go_to('arena', self.parent.level, self.parent.loop, self.parent.units, self.parent.passives, self.parent.shop_level, self.parent.shop_xp, self.parent.locked)
-        print("after")
       end, text = Text({{text = '[wavy, ' .. tostring(state.dark_transitions and 'fg' or 'bg') .. ']level ' .. tostring(self.parent.level) .. '/' .. tostring(25*(self.parent.loop+1)), font = pixul_font, alignment = 'center'}}, global_text_tags)}
     end
 
@@ -1258,7 +1259,12 @@ function CharacterPart:draw(y)
       ]]--
     else
       graphics.rectangle(self.x, self.y, 14, 14, 3, 3, self.highlighted and bg[10] or self.modded and self.hero:getRenderColor() or character_colors[self.character])
-      graphics.print_centered(self.level, pixul_font, self.x + 0.5, self.y + 2, 0, 1, 1, 0, 0, self.highlighted and bg[5] or (self.modded and self.hero:getDimColor() or _G[character_color_strings[self.character]][-5]))
+      local textColor
+      if self.modded then textColor = self.hero:getDimColor()
+      elseif self.name then textColor = self:getDimColor()
+      else textColor = _G[character_color_strings[self.character]][-5] end
+      if self.highlighted then textColor = bg[5] end
+      graphics.print_centered(self.level, pixul_font, self.x + 0.5, self.y + 2, 0, 1, 1, 0, 0, textColor)
     end
     if y then
       graphics.rectangle(self.x, y, 14, 14, 3, 3, bg[5])

@@ -688,9 +688,10 @@ function Arena:quit()
 
         self.build_text = Text2{group = self.ui, x = 40, y = 20, force_update = true, lines = {{text = "[wavy_mid, fg]your build", font = pixul_font, alignment = 'center'}}}
         for i, unit in ipairs(self.units) do
-          CharacterPart{group = self.ui, x = 20, y = 40 + (i-1)*19, character = unit.character, level = unit.level, force_update = true, cant_click = true, parent = self}
+          local characterColorText = unit.hero and unit.hero:distinctName() or character_color_strings[unit.character]
+          CharacterPart{group = self.ui, x = 20, y = 40 + (i-1)*19, character = unit.character, level = unit.level, force_update = true, cant_click = true, parent = self, hero = unit.hero}
           Text2{group = self.ui, x = 20 + 14 + pixul_font:get_text_width(unit.character)/2, y = 40 + (i-1)*19, force_update = true, lines = {
-            {text = '[' .. character_color_strings[unit.character] .. ']' .. unit.character, font = pixul_font, alignment = 'left'}
+            {text = '[' .. characterColorText .. ']' .. unit.character, font = pixul_font, alignment = 'left'}
           }}
         end
         for i, passive in ipairs(self.passives) do
@@ -829,9 +830,10 @@ function Arena:die()
     self.t:after(2, function()
       self.build_text = Text2{group = self.ui, x = 40, y = 20, force_update = true, lines = {{text = "[wavy_mid, fg]your build", font = pixul_font, alignment = 'center'}}}
       for i, unit in ipairs(self.units) do
+        local characterColorText = unit.hero and unit.hero:distinctName() or character_color_strings[unit.character]
         CharacterPart{group = self.ui, x = 20, y = 40 + (i-1)*19, character = unit.character, level = unit.level, force_update = true, cant_click = true, parent = self}
         Text2{group = self.ui, x = 20 + 14 + pixul_font:get_text_width(unit.character)/2, y = 40 + (i-1)*19, force_update = true, lines = {
-          {text = '[' .. character_color_strings[unit.character] .. ']' .. unit.character, font = pixul_font, alignment = 'left'}
+          {text = '[' .. characterColorText .. ']' .. unit.character, font = pixul_font, alignment = 'left'}
         }}
       end
       for i, passive in ipairs(self.passives) do
@@ -1174,6 +1176,15 @@ function CharacterHP:update(dt)
   if t and d then
     local m = self.parent.t:get_every_multiplier'attack'
     self.cooldown_ratio = math.min(t/(d*m), 1)
+  end
+  local t, d = self.parent.t:get_timer_and_delay'act'
+  if t and d then
+    if self.parent.hero and self.parent.hero.use_attack_speed then
+      local m = self.parent.t:get_every_multiplier'attack'
+      self.cooldown_ratio = math.min(t/(d*m), 1)
+    else
+      self.cooldown_ratio = math.min(t/d, 1)
+    end
   end
   local t, d = self.parent.t:get_timer_and_delay'heal'
   if t and d then self.cooldown_ratio = math.min(t/d, 1) end

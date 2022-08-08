@@ -104,7 +104,7 @@ ModTypes.LevelThree = setmetatable({
         return level_three
     end
 }, {
-    _call = function(_, definition)
+    __call = function(_, definition)
         return LevelThree(definition)
     end
 })
