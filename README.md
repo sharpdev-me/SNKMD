@@ -49,7 +49,8 @@ Download this repository, `cd` into it and then run `engine/love/love.exe --cons
 Download this repository and `cd` into it. You will need to install `luasteam.so` for LOVE and `libsteam_api.so` from the Steamworks SDK. A tutorial will be provided in the future. You can then run `love --console .` to run LOVE in the current directory.
 
 ## Screenshots
-A modded unit, the Bishop, display in the shop
+A modded unit, the Bishop, displayed in the shop
+
 ![Bishop](github_images/bishop_regular.png)
 
 The player hovering their mouse over the Bishop
