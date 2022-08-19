@@ -18,6 +18,12 @@ This distribution contains code from the following projects (full license text b
 	License: MIT/Expat
 	Copyright (c) 2013 David Herberth, modified by Alex Szpakowski
 
+ - luazip
+	Website: https://github.com/mpeterv/luazip
+	License: MIT
+	Copyright (c) 2003-2007 The Kepler Project.
+	Copyright (c) 2016-2017 Peter Melnichenko
+
  - glslang
 	Website: https://github.com/KhronosGroup/glslang
 	License: 3-Clause BSD
