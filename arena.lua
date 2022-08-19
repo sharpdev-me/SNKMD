@@ -279,6 +279,8 @@ function Arena:on_enter(from, level, loop, units, passives, shop_level, shop_xp,
   self.sorcerer_level = class_levels.sorcerer
   self.mercenary_level = class_levels.mercenary
 
+  self.class_levels = class_levels
+
   self.t:every(0.375, function()
     local p = random:table(star_positions)
     Star{group = star_group, x = p.x, y = p.y}

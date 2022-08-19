@@ -74,5 +74,38 @@ return function(data)
         return hero
     end
 
+    function mod:createClass(definition)
+        definition.name = definition.name or "ModClass"
+        if self._classes[definition.name] then return nil, "class already exists" end
+        definition.description = definition.description or "ModClassDescription"
+        definition.color = definition.color or green
+        definition.groups = definition.groups or {1}
+        definition.image = definition.image or _G["ranger"]
+        definition.stats = definition.stats or {}
+
+        definition.stats.hp = definition.stats.hp or 1
+        definition.stats.dmg = definition.stats.dmg or 1
+        definition.stats.aspd = definition.stats.aspd or 1
+        definition.stats.area_dmg = definition.stats.area_dmg or 1
+        definition.stats.area_size = definition.stats.area_size or 1
+        definition.stats.def = definition.stats.def or 1
+        definition.stats.mvspd = definition.stats.mvspd or 1
+
+        definition.mod = self
+
+        local class = ModTypes.Class(definition)
+
+        self._classes[class.name] = class
+
+        global_text_tags[class:distinctName()] = TextTag{draw = function(c, i, text) graphics.set_color(class:getRenderColor()) end}
+
+        return class
+    end
+
+    -- Should only be called in the arena
+    function mod:getAllUnits()
+        return main.current.units
+    end
+
     return mod
 end

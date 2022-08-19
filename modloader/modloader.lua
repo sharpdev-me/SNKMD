@@ -206,11 +206,29 @@ function ModLoader.replaceHero(mod, newmod, hero)
     newmod:createHero(hero)
 end
 
+function ModLoader.getFileName(file)
+    return file:match("^.+/(.+)$")
+end
+
+function ModLoader.getFileExtension(file)
+    return file:match("^.+(%..+)$")
+end
+
 function ModLoader.aggregateHeroes()
     local aggregate = {}
     for _, mod in pairs(ModLoader.loadedMods) do
         for _, hero in pairs(mod._heroes) do
             table.insert(aggregate, hero)
+        end
+    end
+    return aggregate
+end
+
+function ModLoader.aggregateClasses()
+    local aggregate = {}
+    for _, mod in pairs(ModLoader.loadedMods) do
+        for _, class in pairs(mod._classes) do
+            table.insert(aggregate, class)
         end
     end
     return aggregate

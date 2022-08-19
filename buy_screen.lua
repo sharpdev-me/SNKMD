@@ -396,7 +396,7 @@ function BuyScreen:set_party_and_sets()
     local x, y
     if #classes <= 6 then x, y = math.index_to_coordinates(i, 2)
     else x, y = math.index_to_coordinates(i, 3) end
-    table.insert(self.sets, ClassIcon{group = self.main, x = (#classes <= 6 and 319 or 308) + (x-1)*20, y = 45 + (y-1)*56, class = class, units = self.units, parent = self})
+    table.insert(self.sets, ClassIcon{group = self.main, x = (#classes <= 6 and 319 or 308) + (x-1)*24, y = 45 + (y-1)*56, class = class, units = self.units, parent = self})
   end
 end
 
@@ -1282,7 +1282,7 @@ function CharacterPart:on_mouse_enter()
 
   local characterColorText = self.modded and self.hero:distinctName() or character_color_strings[self.character]
   local classDisplayString = self.modded and self.hero:createClassString() or character_class_strings[self.character]
-  local characterDescription = self.modded and self.hero:getDescription() or character_descriptions[self.character](self.level)
+  local characterDescription = self.modded and self.hero:getDescription(self.level) or character_descriptions[self.character](self.level)
   local effectName = self.modded and self.hero:getLevelThree():getString(self.level == 3) or (self.level == 3 and character_effect_names[self.character] or character_effect_names_gray[self.character])
   local effectDescription = self.modded and self.hero:getLevelThree():getDescription(self.level == 3) or (self.level == 3 and character_effect_descriptions[self.character]() or character_effect_descriptions_gray[self.character]())
 
@@ -1620,7 +1620,7 @@ function ShopCard:init(args)
     local x = self.x
     if #classes == 2 then x = self.x - 10
     elseif #classes == 3 then x = self.x - 20 end
-    table.insert(self.class_icons, ClassIcon{group = main.current.effects, x = x + (i-1)*20, y = self.y + 6, class = class, character = self.unit, units = self.parent.units, parent = self})
+    table.insert(self.class_icons, ClassIcon{group = main.current.effects, x = x + (i-1)*24, y = self.y + 6, class = class, character = self.unit, units = self.parent.units, parent = self})
   end
   if self.modded then self.cost = self.unit.tier else self.cost = character_tiers[self.unit] end
   self.spring:pull(0.2, 200, 10)
@@ -1803,7 +1803,7 @@ function CharacterIcon:on_mouse_enter()
   local modded = type(self.character == "table") and self.character.name ~= nil
   local characterColorText = modded and self.character:distinctName() or character_color_strings[self.character]
   local classDisplayString = modded and self.character:createClassString() or character_class_strings[self.character]
-  local characterDescription = modded and self.character:getDescription() or character_descriptions[self.character](1)
+  local characterDescription = modded and self.character:getDescription(self.level) or character_descriptions[self.character](self.level)
   local effectName = modded and self.character:getLevelThree():getString(self.level == 3) or (self.level == 3 and character_effect_names[self.character] or character_effect_names_gray[self.character])
   local effectDescription = modded and self.character:getLevelThree():getDescription(self.level == 3) or (self.level == 3 and character_effect_descriptions[self.character]() or character_effect_descriptions_gray[self.character]())
   
@@ -1858,7 +1858,11 @@ end
 
 function TutorialClassIcon:draw()
   graphics.push(self.x, self.y, 0, self.sx*self.spring.x, self.sy*self.spring.x)
-    local i, j, k, n = class_set_numbers[self.class](self.units)
+  local class_numbers = class_set_numbers[self.class]
+  local n = get_number_of_units_per_class(self.units)[self.class]
+  local i = class_numbers[1] or 1
+  local j = class_numbers[2] or 1
+  local k = class_numbers[3]
 
     graphics.rectangle(self.x, self.y, 16, 24, 4, 4, self.highlighted and fg[0] or ((n >= i) and class_colors[self.class] or bg[3]))
     _G[self.class]:draw(self.x, self.y, 0, 0.3, 0.3, 0, 0, self.highlighted and fg[-5] or ((n >= i) and _G[class_color_strings[self.class]][-5] or bg[10]))
@@ -1899,7 +1903,11 @@ end
 function TutorialClassIcon:on_mouse_enter()
   ui_hover1:play{pitch = random:float(1.3, 1.5), volume = 0.5}
   self.spring:pull(0.2, 200, 10)
-  local i, j, k, owned = class_set_numbers[self.class](self.units)
+  local class_numbers = class_set_numbers[self.class]
+  local owned = get_number_of_units_per_class(self.units)[self.class]
+  local i = class_numbers[1] or 1
+  local j = class_numbers[2] or 1
+  local k = class_numbers[3]
   self.info_text = InfoText{group = main.current.tutorial}
   self.info_text:activate({
     {text = '[' .. class_color_strings[self.class] .. ']' .. self.class:capitalize() .. '[fg] - owned: [yellow]' .. owned, font = pixul_font, alignment = 'center', height_multiplier = 1.25},
@@ -1928,6 +1936,8 @@ function ClassIcon:init(args)
   self.interact_with_mouse = true
   self.t:every(0.5, function() self.flash = not self.flash end)
   self.spring:pull(0.2, 200, 10)
+
+  self.text = Text({}, global_text_tags)
 end
 
 
@@ -1938,7 +1948,11 @@ end
 
 function ClassIcon:draw()
   graphics.push(self.x, self.y, 0, self.sx*self.spring.x, self.sy*self.spring.x)
-    local i, j, k, n = class_set_numbers[self.class](self.units)
+    local class_numbers = class_set_numbers[self.class]
+    local n = get_number_of_units_per_class(self.units)[self.class]
+    local i = class_numbers[1] or 1
+    local j = class_numbers[2] or 1
+    local k = class_numbers[3]
     local next_n
     if self.parent:is(ShopCard) then
       next_n = n+1
@@ -1952,108 +1966,136 @@ function ClassIcon:draw()
       end) then next_n = nil end
     end
 
-    graphics.rectangle(self.x, self.y, 16, 24, 4, 4, self.highlighted and fg[0] or ((n >= i) and class_colors[self.class] or bg[3]))
-    _G[self.class]:draw(self.x, self.y, 0, 0.3, 0.3, 0, 0, self.highlighted and fg[-5] or ((n >= i) and _G[class_color_strings[self.class]][-5] or bg[10]))
-    graphics.rectangle(self.x, self.y + 26, 16, 16, 3, 3, self.highlighted and fg[0] or bg[3])
-    if i == 1 then
-      if self.highlighted then
-        graphics.rectangle(self.x, self.y + 26, 3, 9, nil, nil, (n >= 1) and fg[-5] or fg[-10])
-      else
-        graphics.rectangle(self.x, self.y + 26, 3, 9, nil, nil, (n >= 1) and class_colors[self.class] or bg[10])
-      end
-      if next_n then
-        if next_n == 1 then
-          graphics.rectangle(self.x, self.y + 26, 3, 9, nil, nil, self.flash and class_colors[self.class] or bg[10])
-        end
-      end
+    local image = _G[self.class]
+    local color = class_colors[self.class]
+    local dimColor
 
-    elseif i == 2 and not k then
-      if self.highlighted then
-        graphics.line(self.x - 3, self.y + 20, self.x - 3, self.y + 25, (n >= 1) and fg[-5] or fg[-10], 3)
-        graphics.line(self.x - 3, self.y + 27, self.x - 3, self.y + 32, (n >= 2) and fg[-5] or fg[-10], 3)
-        graphics.line(self.x + 4, self.y + 20, self.x + 4, self.y + 25, (n >= 3) and fg[-5] or fg[-10], 3)
-        graphics.line(self.x + 4, self.y + 27, self.x + 4, self.y + 32, (n >= 4) and fg[-5] or fg[-10], 3)
-      else
-        graphics.line(self.x - 3, self.y + 20, self.x - 3, self.y + 25, (n >= 1) and class_colors[self.class] or bg[10], 3)
-        graphics.line(self.x - 3, self.y + 27, self.x - 3, self.y + 32, (n >= 2) and class_colors[self.class] or bg[10], 3)
-        graphics.line(self.x + 4, self.y + 20, self.x + 4, self.y + 25, (n >= 3) and class_colors[self.class] or bg[10], 3)
-        graphics.line(self.x + 4, self.y + 27, self.x + 4, self.y + 32, (n >= 4) and class_colors[self.class] or bg[10], 3)
-      end
-      if next_n then
-        if next_n == 1 then
-          graphics.line(self.x - 3, self.y + 20, self.x - 3, self.y + 25, self.flash and class_colors[self.class] or bg[10], 3)
-        elseif next_n == 2 then
-          graphics.line(self.x - 3, self.y + 27, self.x - 3, self.y + 32, self.flash and class_colors[self.class] or bg[10], 3)
-        elseif next_n == 3 then
-          graphics.line(self.x + 4, self.y + 20, self.x + 4, self.y + 25, self.flash and class_colors[self.class] or bg[10], 3)
-        elseif next_n == 4 then
-          graphics.line(self.x + 4, self.y + 27, self.x + 4, self.y + 32, self.flash and class_colors[self.class] or bg[10], 3)
-        end
-      end
-    elseif i == 2 and k == 6 then
-      if self.highlighted then
-        graphics.line(self.x - 5, self.y + 21, self.x - 5, self.y + 24, (n >= 1) and fg[-5] or fg[-10], 3)
-        graphics.line(self.x - 5, self.y + 28, self.x - 5, self.y + 31, (n >= 2) and fg[-5] or fg[-10], 3)
-        graphics.line(self.x + 0, self.y + 21, self.x + 0, self.y + 24, (n >= 3) and fg[-5] or fg[-10], 3)
-        graphics.line(self.x + 0, self.y + 28, self.x + 0, self.y + 31, (n >= 4) and fg[-5] or fg[-10], 3)
-        graphics.line(self.x + 5, self.y + 21, self.x + 5, self.y + 24, (n >= 5) and fg[-5] or fg[-10], 3)
-        graphics.line(self.x + 5, self.y + 28, self.x + 5, self.y + 31, (n >= 6) and fg[-5] or fg[-10], 3)
-      else
-        graphics.line(self.x - 5, self.y + 21, self.x - 5, self.y + 24, (n >= 1) and class_colors[self.class] or bg[10], 3)
-        graphics.line(self.x - 5, self.y + 28, self.x - 5, self.y + 31, (n >= 2) and class_colors[self.class] or bg[10], 3)
-        graphics.line(self.x + 0, self.y + 21, self.x + 0, self.y + 24, (n >= 3) and class_colors[self.class] or bg[10], 3)
-        graphics.line(self.x + 0, self.y + 28, self.x + 0, self.y + 31, (n >= 4) and class_colors[self.class] or bg[10], 3)
-        graphics.line(self.x + 5, self.y + 21, self.x + 5, self.y + 24, (n >= 5) and class_colors[self.class] or bg[10], 3)
-        graphics.line(self.x + 5, self.y + 28, self.x + 5, self.y + 31, (n >= 6) and class_colors[self.class] or bg[10], 3)
-      end
-      if next_n then
-        if next_n == 1 then
-          graphics.line(self.x - 5, self.y + 21, self.x - 5, self.y + 24, self.flash and class_colors[self.class] or bg[10], 3)
-        elseif next_n == 2 then
-          graphics.line(self.x - 5, self.y + 28, self.x - 5, self.y + 31, self.flash and class_colors[self.class] or bg[10], 3)
-        elseif next_n == 3 then
-          graphics.line(self.x + 0, self.y + 21, self.x + 0, self.y + 24, self.flash and class_colors[self.class] or bg[10], 3)
-        elseif next_n == 4 then
-          graphics.line(self.x + 0, self.y + 28, self.x + 0, self.y + 31, self.flash and class_colors[self.class] or bg[10], 3)
-        elseif next_n == 5 then
-          graphics.line(self.x + 5, self.y + 21, self.x + 5, self.y + 24, self.flash and class_colors[self.class] or bg[10], 3)
-        elseif next_n == 6 then
-          graphics.line(self.x + 5, self.y + 28, self.x + 5, self.y + 31, self.flash and class_colors[self.class] or bg[10], 3)
-        end
-      end
-
-    elseif i == 3 then
-      if self.highlighted then
-        graphics.line(self.x - 3, self.y + 19, self.x - 3, self.y + 22, (n >= 1) and fg[-5] or fg[-10], 3)
-        graphics.line(self.x - 3, self.y + 24, self.x - 3, self.y + 27, (n >= 2) and fg[-5] or fg[-10], 3)
-        graphics.line(self.x - 3, self.y + 29, self.x - 3, self.y + 32, (n >= 3) and fg[-5] or fg[-10], 3)
-        graphics.line(self.x + 4, self.y + 19, self.x + 4, self.y + 22, (n >= 4) and fg[-5] or fg[-10], 3)
-        graphics.line(self.x + 4, self.y + 24, self.x + 4, self.y + 27, (n >= 5) and fg[-5] or fg[-10], 3)
-        graphics.line(self.x + 4, self.y + 29, self.x + 4, self.y + 32, (n >= 6) and fg[-5] or fg[-10], 3)
-      else
-        graphics.line(self.x - 3, self.y + 19, self.x - 3, self.y + 22, (n >= 1) and class_colors[self.class] or bg[10], 3)
-        graphics.line(self.x - 3, self.y + 24, self.x - 3, self.y + 27, (n >= 2) and class_colors[self.class] or bg[10], 3)
-        graphics.line(self.x - 3, self.y + 29, self.x - 3, self.y + 32, (n >= 3) and class_colors[self.class] or bg[10], 3)
-        graphics.line(self.x + 4, self.y + 19, self.x + 4, self.y + 22, (n >= 4) and class_colors[self.class] or bg[10], 3)
-        graphics.line(self.x + 4, self.y + 24, self.x + 4, self.y + 27, (n >= 5) and class_colors[self.class] or bg[10], 3)
-        graphics.line(self.x + 4, self.y + 29, self.x + 4, self.y + 32, (n >= 6) and class_colors[self.class] or bg[10], 3)
-      end
-      if next_n then
-        if next_n == 1 then
-          graphics.line(self.x - 3, self.y + 19, self.x - 3, self.y + 22, self.flash and class_colors[self.class] or bg[10], 3)
-        elseif next_n == 2 then
-          graphics.line(self.x - 3, self.y + 24, self.x - 3, self.y + 27, self.flash and class_colors[self.class] or bg[10], 3)
-        elseif next_n == 3 then
-          graphics.line(self.x - 3, self.y + 29, self.x - 3, self.y + 32, self.flash and class_colors[self.class] or bg[10], 3)
-        elseif next_n == 4 then
-          graphics.line(self.x + 4, self.y + 19, self.x + 4, self.y + 22, self.flash and class_colors[self.class] or bg[10], 3)
-        elseif next_n == 5 then
-          graphics.line(self.x + 4, self.y + 24, self.x + 4, self.y + 27, self.flash and class_colors[self.class] or bg[10], 3)
-        elseif next_n == 6 then
-          graphics.line(self.x + 4, self.y + 29, self.x + 4, self.y + 32, self.flash and class_colors[self.class] or bg[10], 3)
-        end
-      end
+    if type(self.class) == "table" then
+      image = self.class.image
+      color = self.class:getRenderColor()
+      dimColor = self.class:getDimColor()
+    else
+      dimColor = _G[class_color_strings[self.class]][-5]
     end
+
+    graphics.rectangle(self.x, self.y, 16, 24, 4, 4, self.highlighted and fg[0] or ((n >= i) and color or bg[3]))
+    image:draw(self.x, self.y, 0, 0.3, 0.3, 0, 0, self.highlighted and fg[-5] or ((n >= i) and dimColor or bg[10]))
+    graphics.rectangle(self.x, self.y + 20, 20, 12, 3, 3, self.highlighted and fg[0] or bg[3])
+
+    local cString = '[' .. (class_color_strings[self.class] or self.class:distinctName()) .. ']'
+
+    local leftColor
+    if n >= class_numbers[#class_numbers] then
+      leftColor = cString
+    else leftColor = "[yellow]" end
+
+    self.text:set_text({
+      {text = leftColor .. n .. "[white]/" .. cString .. class_numbers[#class_numbers], font = pixul_font, alignment = 'center'}
+    })
+
+    local idk = 0.8
+    self.text:draw(self.x + 0.5, self.y + 22, 0, idk, idk + 0.2)
+
+
+    -- if i == 1 then
+    --   if self.highlighted then
+    --     graphics.rectangle(self.x, self.y + 26, 3, 9, nil, nil, (n >= 1) and fg[-5] or fg[-10])
+    --   else
+    --     graphics.rectangle(self.x, self.y + 26, 3, 9, nil, nil, (n >= 1) and color or bg[10])
+    --   end
+    --   if next_n then
+    --     if next_n == 1 then
+    --       graphics.rectangle(self.x, self.y + 26, 3, 9, nil, nil, self.flash and color or bg[10])
+    --     end
+    --   end
+
+    -- elseif i == 2 and not k then
+    --   if self.highlighted then
+    --     graphics.line(self.x - 3, self.y + 20, self.x - 3, self.y + 25, (n >= 1) and fg[-5] or fg[-10], 3)
+    --     graphics.line(self.x - 3, self.y + 27, self.x - 3, self.y + 32, (n >= 2) and fg[-5] or fg[-10], 3)
+    --     graphics.line(self.x + 4, self.y + 20, self.x + 4, self.y + 25, (n >= 3) and fg[-5] or fg[-10], 3)
+    --     graphics.line(self.x + 4, self.y + 27, self.x + 4, self.y + 32, (n >= 4) and fg[-5] or fg[-10], 3)
+    --   else
+    --     graphics.line(self.x - 3, self.y + 20, self.x - 3, self.y + 25, (n >= 1) and color or bg[10], 3)
+    --     graphics.line(self.x - 3, self.y + 27, self.x - 3, self.y + 32, (n >= 2) and color or bg[10], 3)
+    --     graphics.line(self.x + 4, self.y + 20, self.x + 4, self.y + 25, (n >= 3) and color or bg[10], 3)
+    --     graphics.line(self.x + 4, self.y + 27, self.x + 4, self.y + 32, (n >= 4) and color or bg[10], 3)
+    --   end
+    --   if next_n then
+    --     if next_n == 1 then
+    --       graphics.line(self.x - 3, self.y + 20, self.x - 3, self.y + 25, self.flash and color or bg[10], 3)
+    --     elseif next_n == 2 then
+    --       graphics.line(self.x - 3, self.y + 27, self.x - 3, self.y + 32, self.flash and color or bg[10], 3)
+    --     elseif next_n == 3 then
+    --       graphics.line(self.x + 4, self.y + 20, self.x + 4, self.y + 25, self.flash and color or bg[10], 3)
+    --     elseif next_n == 4 then
+    --       graphics.line(self.x + 4, self.y + 27, self.x + 4, self.y + 32, self.flash and color or bg[10], 3)
+    --     end
+    --   end
+    -- elseif i == 2 and k == 6 then
+    --   if self.highlighted then
+    --     graphics.line(self.x - 5, self.y + 21, self.x - 5, self.y + 24, (n >= 1) and fg[-5] or fg[-10], 3)
+    --     graphics.line(self.x - 5, self.y + 28, self.x - 5, self.y + 31, (n >= 2) and fg[-5] or fg[-10], 3)
+    --     graphics.line(self.x + 0, self.y + 21, self.x + 0, self.y + 24, (n >= 3) and fg[-5] or fg[-10], 3)
+    --     graphics.line(self.x + 0, self.y + 28, self.x + 0, self.y + 31, (n >= 4) and fg[-5] or fg[-10], 3)
+    --     graphics.line(self.x + 5, self.y + 21, self.x + 5, self.y + 24, (n >= 5) and fg[-5] or fg[-10], 3)
+    --     graphics.line(self.x + 5, self.y + 28, self.x + 5, self.y + 31, (n >= 6) and fg[-5] or fg[-10], 3)
+    --   else
+    --     graphics.line(self.x - 5, self.y + 21, self.x - 5, self.y + 24, (n >= 1) and color or bg[10], 3)
+    --     graphics.line(self.x - 5, self.y + 28, self.x - 5, self.y + 31, (n >= 2) and color or bg[10], 3)
+    --     graphics.line(self.x + 0, self.y + 21, self.x + 0, self.y + 24, (n >= 3) and color or bg[10], 3)
+    --     graphics.line(self.x + 0, self.y + 28, self.x + 0, self.y + 31, (n >= 4) and color or bg[10], 3)
+    --     graphics.line(self.x + 5, self.y + 21, self.x + 5, self.y + 24, (n >= 5) and color or bg[10], 3)
+    --     graphics.line(self.x + 5, self.y + 28, self.x + 5, self.y + 31, (n >= 6) and color or bg[10], 3)
+    --   end
+    --   if next_n then
+    --     if next_n == 1 then
+    --       graphics.line(self.x - 5, self.y + 21, self.x - 5, self.y + 24, self.flash and color or bg[10], 3)
+    --     elseif next_n == 2 then
+    --       graphics.line(self.x - 5, self.y + 28, self.x - 5, self.y + 31, self.flash and color or bg[10], 3)
+    --     elseif next_n == 3 then
+    --       graphics.line(self.x + 0, self.y + 21, self.x + 0, self.y + 24, self.flash and color or bg[10], 3)
+    --     elseif next_n == 4 then
+    --       graphics.line(self.x + 0, self.y + 28, self.x + 0, self.y + 31, self.flash and color or bg[10], 3)
+    --     elseif next_n == 5 then
+    --       graphics.line(self.x + 5, self.y + 21, self.x + 5, self.y + 24, self.flash and color or bg[10], 3)
+    --     elseif next_n == 6 then
+    --       graphics.line(self.x + 5, self.y + 28, self.x + 5, self.y + 31, self.flash and color or bg[10], 3)
+    --     end
+    --   end
+
+    -- elseif i == 3 then
+    --   if self.highlighted then
+    --     graphics.line(self.x - 3, self.y + 19, self.x - 3, self.y + 22, (n >= 1) and fg[-5] or fg[-10], 3)
+    --     graphics.line(self.x - 3, self.y + 24, self.x - 3, self.y + 27, (n >= 2) and fg[-5] or fg[-10], 3)
+    --     graphics.line(self.x - 3, self.y + 29, self.x - 3, self.y + 32, (n >= 3) and fg[-5] or fg[-10], 3)
+    --     graphics.line(self.x + 4, self.y + 19, self.x + 4, self.y + 22, (n >= 4) and fg[-5] or fg[-10], 3)
+    --     graphics.line(self.x + 4, self.y + 24, self.x + 4, self.y + 27, (n >= 5) and fg[-5] or fg[-10], 3)
+    --     graphics.line(self.x + 4, self.y + 29, self.x + 4, self.y + 32, (n >= 6) and fg[-5] or fg[-10], 3)
+    --   else
+    --     graphics.line(self.x - 3, self.y + 19, self.x - 3, self.y + 22, (n >= 1) and color or bg[10], 3)
+    --     graphics.line(self.x - 3, self.y + 24, self.x - 3, self.y + 27, (n >= 2) and color or bg[10], 3)
+    --     graphics.line(self.x - 3, self.y + 29, self.x - 3, self.y + 32, (n >= 3) and color or bg[10], 3)
+    --     graphics.line(self.x + 4, self.y + 19, self.x + 4, self.y + 22, (n >= 4) and color or bg[10], 3)
+    --     graphics.line(self.x + 4, self.y + 24, self.x + 4, self.y + 27, (n >= 5) and color or bg[10], 3)
+    --     graphics.line(self.x + 4, self.y + 29, self.x + 4, self.y + 32, (n >= 6) and color or bg[10], 3)
+    --   end
+    --   if next_n then
+    --     if next_n == 1 then
+    --       graphics.line(self.x - 3, self.y + 19, self.x - 3, self.y + 22, self.flash and color or bg[10], 3)
+    --     elseif next_n == 2 then
+    --       graphics.line(self.x - 3, self.y + 24, self.x - 3, self.y + 27, self.flash and color or bg[10], 3)
+    --     elseif next_n == 3 then
+    --       graphics.line(self.x - 3, self.y + 29, self.x - 3, self.y + 32, self.flash and color or bg[10], 3)
+    --     elseif next_n == 4 then
+    --       graphics.line(self.x + 4, self.y + 19, self.x + 4, self.y + 22, self.flash and color or bg[10], 3)
+    --     elseif next_n == 5 then
+    --       graphics.line(self.x + 4, self.y + 24, self.x + 4, self.y + 27, self.flash and color or bg[10], 3)
+    --     elseif next_n == 6 then
+    --       graphics.line(self.x + 4, self.y + 29, self.x + 4, self.y + 32, self.flash and color or bg[10], 3)
+    --     end
+    --   end
+    -- end
   graphics.pop()
 end
 
@@ -2061,11 +2103,21 @@ end
 function ClassIcon:on_mouse_enter()
   ui_hover1:play{pitch = random:float(1.3, 1.5), volume = 0.5}
   self.spring:pull(0.2, 200, 10)
-  local i, j, k, owned = class_set_numbers[self.class](self.units)
+  local class_numbers = class_set_numbers[self.class]
+  local owned = get_number_of_units_per_class(self.units)[self.class]
+  local i = class_numbers[1] or 1
+  local j = class_numbers[2] or 1
+  local k = class_numbers[3]
   self.info_text = InfoText{group = main.current.ui}
+  local description
+  if type(self.class) == "table" then
+    description = self.class:getColoredDescription(owned)
+  else
+    description = class_descriptions[self.class]((k and (owned >= k and 3)) or (owned >= j and 2) or (owned >= i and 1) or 0)
+  end
   self.info_text:activate({
-    {text = '[' .. class_color_strings[self.class] .. ']' .. (self.class == 'conjurer' and 'Builder' or self.class:capitalize()) .. '[fg] - owned: [yellow]' .. owned, font = pixul_font, alignment = 'center', height_multiplier = 1.25},
-    {text = class_descriptions[self.class]((k and (owned >= k and 3)) or (owned >= j and 2) or (owned >= i and 1) or 0), font = pixul_font, alignment = 'center'},
+    {text = '[' .. (class_color_strings[self.class] or self.class:distinctName()) .. ']' .. (self.class == 'conjurer' and 'Builder' or self.class:capitalize()) .. '[fg] - owned: [yellow]' .. owned, font = pixul_font, alignment = 'center', height_multiplier = 1.25},
+    {text = description, font = pixul_font, alignment = 'center'},
   }, nil, nil, nil, nil, 16, 4, nil, 2)
   self.info_text.x, self.info_text.y = gw/2, gh/2 + 10
 
@@ -2106,12 +2158,19 @@ end
 
 function ClassIcon:die(dont_spawn_effect)
   self.dead = true
-  local i, j, k, n = class_set_numbers[self.class](self.units)
+  local class_numbers = class_set_numbers[self.class]
+  local n = get_number_of_units_per_class(self.units)[self.class]
+  local i = class_numbers[1]
   if not dont_spawn_effect then SpawnEffect{group = main.current.effects, x = self.x, y = self.y + 4, color = (n >= i) and class_colors[self.class] or bg[3]} end
   if self.info_text then
     self.info_text:deactivate()
     self.info_text.dead = true
     self.info_text = nil
+  end
+
+  if self.text then
+    self.text.dead = true
+    self.text = nil
   end
 
   if self.selected and not self.parent:is(ShopCard) then

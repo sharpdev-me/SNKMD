@@ -12,7 +12,6 @@ require 'modloader.modloader'
 
 function init()
   shared_init()
-  ModLoader.load()
 
   input:bind('move_left', {'a', 'left', 'dpleft', 'm1'})
   input:bind('move_right', {'d', 'e', 's', 'right', 'dpright', 'm2'})
@@ -235,6 +234,9 @@ function init()
   psycholeak = Image('psycholeak')
   divine_blessing = Image('divine_blessing')
   hardening = Image('hardening')
+
+  -- load the modloader after all the assets
+  ModLoader.load()
 
   class_colors = {
     ['warrior'] = yellow[0],
@@ -952,7 +954,7 @@ function init()
     ['thief'] = function(lvl) return get_character_stat_string('thief', lvl) end,
   }
 
-  class_stat_multipliers = {
+  _class_stat_multipliers = {
     ['ranger'] = {hp = 1, dmg = 1.2, aspd = 1.5, area_dmg = 1, area_size = 1, def = 0.9, mvspd = 1.2},
     ['warrior'] = {hp = 1.4, dmg = 1.1, aspd = 0.9, area_dmg = 1, area_size = 1, def = 1.25, mvspd = 0.9},
     ['mage'] = {hp = 0.6, dmg = 1.4, aspd = 1, area_dmg = 1.25, area_size = 1.2, def = 0.75, mvspd = 1},
@@ -974,6 +976,18 @@ function init()
     ['enemy_critter'] = {hp = 1, dmg = 1, aspd = 1, area_dmg = 1, area_size = 1, def = 1, mvspd = 0.5},
     ['saboteur'] = {hp = 1, dmg = 1, aspd = 1, area_dmg = 1, area_size = 1, def = 1, mvspd = 1.4},
   }
+
+  class_stat_multipliers = setmetatable(table.shallow_copy(_class_stat_multipliers), {
+    __index = function(_, key)
+      if _class_stat_multipliers[key] ~= nil then return _class_stat_multipliers[key] end
+      if type(key) ~= "table" then return nil end
+      if key.distinctName == nil then return nil end
+      for _,v in ipairs(ModLoader.aggregateClasses()) do
+        if v:distinctName() == key:distinctName() then return v.stats end
+      end
+      return nil
+    end
+  })
 
   local ylb1 = function(lvl)
     if lvl == 3 then return 'light_bg'
@@ -1089,108 +1103,43 @@ function init()
   end
 
   get_number_of_units_per_class = function(units)
-    local rangers = 0
-    local warriors = 0
-    local healers = 0
-    local mages = 0
-    local nukers = 0
-    local conjurers = 0
-    local rogues = 0
-    local enchanters = 0
-    local psykers = 0
-    local cursers = 0
-    local forcers = 0
-    local swarmers = 0
-    local voiders = 0
-    local sorcerers = 0
-    local mercenaries = 0
-    local explorers = 0
+    local r = {}
+    -- fix during class rework
+    for k, _ in pairs(class_colors) do
+      r[k] = 0
+    end
+    for _, v in ipairs(ModLoader.aggregateClasses()) do
+      r[v] = 0
+    end
     for _, unit in ipairs(units) do
       if unit.hero then
         for _, unit_class in ipairs(unit.hero.classes) do
-          if unit_class == 'ranger' then rangers = rangers + 1 end
-          if unit_class == 'warrior' then warriors = warriors + 1 end
-          if unit_class == 'healer' then healers = healers + 1 end
-          if unit_class == 'mage' then mages = mages + 1 end
-          if unit_class == 'nuker' then nukers = nukers + 1 end
-          if unit_class == 'conjurer' then conjurers = conjurers + 1 end
-          if unit_class == 'rogue' then rogues = rogues + 1 end
-          if unit_class == 'enchanter' then enchanters = enchanters + 1 end
-          if unit_class == 'psyker' then psykers = psykers + 1 end
-          if unit_class == 'curser' then cursers = cursers + 1 end
-          if unit_class == 'forcer' then forcers = forcers + 1 end
-          if unit_class == 'swarmer' then swarmers = swarmers + 1 end
-          if unit_class == 'voider' then voiders = voiders + 1 end
-          if unit_class == 'sorcerer' then sorcerers = sorcerers + 1 end
-          if unit_class == 'mercenary' then mercenaries = mercenaries + 1 end
-          if unit_class == 'explorer' then explorers = explorers + 1 end
+          r[unit_class] = (r[unit_class] or 0) + 1
         end
       elseif type(unit) == "table" and unit.name ~= nil then
         for _, unit_class in ipairs(unit.classes) do
-          if unit_class == 'ranger' then rangers = rangers + 1 end
-          if unit_class == 'warrior' then warriors = warriors + 1 end
-          if unit_class == 'healer' then healers = healers + 1 end
-          if unit_class == 'mage' then mages = mages + 1 end
-          if unit_class == 'nuker' then nukers = nukers + 1 end
-          if unit_class == 'conjurer' then conjurers = conjurers + 1 end
-          if unit_class == 'rogue' then rogues = rogues + 1 end
-          if unit_class == 'enchanter' then enchanters = enchanters + 1 end
-          if unit_class == 'psyker' then psykers = psykers + 1 end
-          if unit_class == 'curser' then cursers = cursers + 1 end
-          if unit_class == 'forcer' then forcers = forcers + 1 end
-          if unit_class == 'swarmer' then swarmers = swarmers + 1 end
-          if unit_class == 'voider' then voiders = voiders + 1 end
-          if unit_class == 'sorcerer' then sorcerers = sorcerers + 1 end
-          if unit_class == 'mercenary' then mercenaries = mercenaries + 1 end
-          if unit_class == 'explorer' then explorers = explorers + 1 end
+          r[unit_class] = (r[unit_class] or 0) + 1
         end
       else
         for _, unit_class in ipairs(character_classes[unit.character]) do
-          if unit_class == 'ranger' then rangers = rangers + 1 end
-          if unit_class == 'warrior' then warriors = warriors + 1 end
-          if unit_class == 'healer' then healers = healers + 1 end
-          if unit_class == 'mage' then mages = mages + 1 end
-          if unit_class == 'nuker' then nukers = nukers + 1 end
-          if unit_class == 'conjurer' then conjurers = conjurers + 1 end
-          if unit_class == 'rogue' then rogues = rogues + 1 end
-          if unit_class == 'enchanter' then enchanters = enchanters + 1 end
-          if unit_class == 'psyker' then psykers = psykers + 1 end
-          if unit_class == 'curser' then cursers = cursers + 1 end
-          if unit_class == 'forcer' then forcers = forcers + 1 end
-          if unit_class == 'swarmer' then swarmers = swarmers + 1 end
-          if unit_class == 'voider' then voiders = voiders + 1 end
-          if unit_class == 'sorcerer' then sorcerers = sorcerers + 1 end
-          if unit_class == 'mercenary' then mercenaries = mercenaries + 1 end
-          if unit_class == 'explorer' then explorers = explorers + 1 end
+          r[unit_class] = (r[unit_class] or 0) + 1
         end
       end
     end
-    return {ranger = rangers, warrior = warriors, healer = healers, mage = mages, nuker = nukers, conjurer = conjurers, rogue = rogues,
-      enchanter = enchanters, psyker = psykers, curser = cursers, forcer = forcers, swarmer = swarmers, voider = voiders, sorcerer = sorcerers, mercenary = mercenaries, explorer = explorers}
+    return r
   end
 
   get_class_levels = function(units)
     local units_per_class = get_number_of_units_per_class(units)
     local units_to_class_level = function(number_of_units, class)
-      if class == 'ranger' or class == 'warrior' or class == 'mage' or class == 'nuker' or class == 'rogue' then
-        if number_of_units >= 6 then return 2
-        elseif number_of_units >= 3 then return 1
-        else return 0 end
-      elseif class == 'healer' or class == 'conjurer' or class == 'enchanter' or class == 'curser' or class == 'forcer' or class == 'swarmer' or class == 'voider' or class == 'mercenary' or class == 'psyker' then
-        if number_of_units >= 4 then return 2
-        elseif number_of_units >= 2 then return 1
-        else return 0 end
-      elseif class == 'sorcerer' then
-        if number_of_units >= 6 then return 3
-        elseif number_of_units >= 4 then return 2
-        elseif number_of_units >= 2 then return 1
-        else return 0 end
-      elseif class == 'explorer' then
-        if number_of_units >= 1 then return 1
-        else return 0 end
+      local groups = class_set_numbers[class]
+      for i = #groups, 1, -1 do
+        if number_of_units >= groups[i] then return i end
+        return 0
       end
     end
-    return {
+
+    local u = {
       ranger = units_to_class_level(units_per_class.ranger, 'ranger'),
       warrior = units_to_class_level(units_per_class.warrior, 'warrior'),
       mage = units_to_class_level(units_per_class.mage, 'mage'),
@@ -1208,35 +1157,51 @@ function init()
       mercenary = units_to_class_level(units_per_class.mercenary, 'mercenary'),
       explorer = units_to_class_level(units_per_class.explorer, 'explorer'),
     }
+    for _,class in pairs(ModLoader.aggregateClasses()) do
+      u[class] = units_to_class_level(units_per_class[class], class)
+    end
+    return u
   end
 
   get_classes = function(units)
     local classes = {}
     for _, unit in ipairs(units) do
       local uclasses = unit.hero ~= nil and unit.hero.classes or character_classes[unit.character]
-      table.insert(classes, table.copy(uclasses))
+      table.insert(classes, table.shallow_copy(uclasses))
     end
-    return table.unify(table.flatten(classes))
+    return table.unify(table.flatten(classes, true))
   end
 
-  class_set_numbers = {
-    ['ranger'] = function(units) return 3, 6, nil, get_number_of_units_per_class(units).ranger end,
-    ['warrior'] = function(units) return 3, 6, nil, get_number_of_units_per_class(units).warrior end,
-    ['mage'] = function(units) return 3, 6, nil, get_number_of_units_per_class(units).mage end,
-    ['nuker'] = function(units) return 3, 6, nil, get_number_of_units_per_class(units).nuker end,
-    ['rogue'] = function(units) return 3, 6, nil, get_number_of_units_per_class(units).rogue end,
-    ['healer'] = function(units) return 2, 4, nil, get_number_of_units_per_class(units).healer end,
-    ['conjurer'] = function(units) return 2, 4, nil, get_number_of_units_per_class(units).conjurer end,
-    ['enchanter'] = function(units) return 2, 4, nil, get_number_of_units_per_class(units).enchanter end,
-    ['psyker'] = function(units) return 2, 4, nil, get_number_of_units_per_class(units).psyker end,
-    ['curser'] = function(units) return 2, 4, nil, get_number_of_units_per_class(units).curser end,
-    ['forcer'] = function(units) return 2, 4, nil, get_number_of_units_per_class(units).forcer end,
-    ['swarmer'] = function(units) return 2, 4, nil, get_number_of_units_per_class(units).swarmer end,
-    ['voider'] = function(units) return 2, 4, nil, get_number_of_units_per_class(units).voider end,
-    ['sorcerer'] = function(units) return 2, 4, 6, get_number_of_units_per_class(units).sorcerer end,
-    ['mercenary'] = function(units) return 2, 4, nil, get_number_of_units_per_class(units).mercenary end,
-    ['explorer'] = function(units) return 1, 1, nil, get_number_of_units_per_class(units).explorer end,
+  _class_set_numbers = {
+    ['ranger'] = {3,6},
+    ['warrior'] = {3,6},
+    ['mage'] = {3,6},
+    ['nuker'] = {3,6},
+    ['rogue'] = {3,6},
+    ['healer'] = {2,4},
+    ['conjurer'] = {2,4},
+    ['enchanter'] = {2,4},
+    ['psyker'] = {2,4},
+    ['curser'] = {2,4},
+    ['forcer'] = {2,4},
+    ['swarmer'] = {2,4},
+    ['voider'] = {2,4},
+    ['sorcerer'] = {2,4,6},
+    ['mercenary'] = {2,4},
+    ['explorer'] = {1},
   }
+
+  class_set_numbers = setmetatable(table.copy(_class_set_numbers), {
+    __index = function(_, key)
+      if _class_set_numbers[key] ~= nil then return _class_set_numbers[key] end
+      if type(key) ~= "table" then return nil end
+      if key.distinctName == nil then return nil end
+      for _,v in ipairs(ModLoader.aggregateClasses()) do
+        if v:distinctName() == key:distinctName() then return v.groups end
+      end
+      return nil
+    end
+  })
 
   passive_names = {
     ['centipede'] = 'Centipede',
@@ -1749,6 +1714,8 @@ function init()
 
   main_song_instance = _G[random:table{'song1', 'song2', 'song3', 'song4', 'song5'}]:play{volume = 0.5}
   main = Main()
+
+  ModLoader.pushEvent("main_load_finished")
 
   main:add(MainMenu'mainmenu')
   main:go_to('mainmenu')

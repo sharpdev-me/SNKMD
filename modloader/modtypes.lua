@@ -4,21 +4,24 @@ ModTypes.Hero = setmetatable({
 
 }, {
     __call = function(_, definition)
-        local hero = table.copy(definition)
+        local hero = table.shallow_copy(definition)
 
-        function hero:getDescription()
-            if type(hero.description) == "function" then return hero.description(hero) else return hero.description end
+        function hero:getDescription(l)
+            if type(self.description) == "function" then return self:description(l) else return self.description end
         end
 
         function hero:getColor()
-            if hero.color then return hero.color end
+            if self.color then return self.color end
 
-            -- change this when you do the class revamp
-            return class_colors[self.classes[1]]
+            local colorClass = self.classes[1]
+            if colorClass.mod ~= nil then
+                return colorClass:getColor()
+            end
+            return class_colors[colorClass]
         end
 
         function hero:distinctName()
-            return hero.mod.name .. hero.name
+            return "hero_" .. self.mod.name .. self.name
         end
 
         function hero:getRenderColor()
@@ -33,15 +36,16 @@ ModTypes.Hero = setmetatable({
         end
 
         function hero:capitalize()
-            return hero.name:gsub("_", " "):capitalize()
+            return self.name:gsub("_", " "):capitalize()
         end
 
         function hero:createClassString()
             local result = {}
 
-            -- fix in class revamp
             for _, class in ipairs(self.classes) do
-                table.insert(result, '[' .. class_color_strings[class] .. ']' .. class:capitalize())
+                if class.mod ~= nil then
+                    table.insert(result, '[' .. class:distinctName() .. ']' .. class:capitalize())
+                else table.insert(result, '[' .. class_color_strings[class] .. ']' .. class:capitalize()) end
             end
 
             return table.concat(result, ", ")
@@ -61,6 +65,84 @@ ModTypes.Hero = setmetatable({
         return hero
     end
 })
+
+function ModTypes.Class(definition)
+    local class = table.shallow_copy(definition)
+
+    function class:distinctName()
+        return self.mod.name .. self.name
+    end
+
+    function class:getColor()
+        return self.color
+    end
+
+    function class:getRenderColor()
+        if self.color[0] ~= nil then return self.color[0] else return self.color end
+    end
+
+    function class:getDimColor()
+        if not self.colorRamp then self.colorRamp = ColorRamp(self:getRenderColor(), 0.025) end
+        return self.colorRamp[-5]
+    end
+
+    function class:capitalize()
+        return self.name:gsub("_", " "):capitalize()
+    end
+
+    function class:getDescription(num_units)
+        if type(self.description) == "function" then return self:description(num_units) else return self.description end
+    end
+
+    function class:getColoredDescription(num_units)
+        local u = 0
+        local s = ""
+        for _,v in ipairs(self.groups) do
+            if num_units >= v then u = v end
+        end
+
+        for i,v in ipairs(self.groups) do
+            if i ~= 1 then s = s .. "[light_bg]/" end
+            local color
+            if v == u then color = "yellow" else color = "light_bg" end
+            s = s .. '[' .. color .. ']' .. v
+        end
+        return s .. " [fg] - " .. self:getDescription(num_units)
+    end
+
+    function class:getNumberOfUnits()
+        return get_number_of_units_per_class(self.mod:getAllUnits())[self]
+    end
+
+    function class:getClassLevel()
+        return get_class_levels(self.mod:getAllUnits())[self]
+    end
+
+    return class
+end
+
+-- The base Image class.
+ModTypes.ModImage = Object:extend()
+function ModTypes.ModImage:init(mod, image_path)
+    local filePath = mod:getModFolderAbsolute() .. "/" .. image_path
+    local file = io.open(filePath, "r")
+    if not file then return nil end
+    local data = love.filesystem.newFileData(file:read("*a"), ModLoader.getFileName(filePath))
+    self.image = love.graphics.newImage(data)
+    self.w = self.image:getWidth()
+    self.h = self.image:getHeight()
+end
+
+
+function ModTypes.ModImage:draw(x, y, r, sx, sy, ox, oy, color)
+  local _r, g, b, a
+  if color then
+    _r, g, b, a = love.graphics.getColor()
+    graphics.set_color(color)
+  end
+  love.graphics.draw(self.image, x, y, r or 0, sx or 1, sy or sx or 1, self.w/2 + (ox or 0), self.h/2 + (oy or 0))
+  if color then love.graphics.setColor(_r, g, b, a) end
+end
 
 local function LevelThree(definition)
     local levelThree = table.shallow_copy(definition)
