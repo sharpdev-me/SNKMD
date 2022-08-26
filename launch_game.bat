@@ -1,1 +1,1 @@
-engine/love/love.exe --console .
+.\engine\love\love.exe --console .
