@@ -43,10 +43,10 @@ I need to know what I need to implement in the API, so please let me know about 
 ## Running
 
 ### Windows
-Download this repository, `cd` into it and then run `engine/love/love.exe --console .`. You need to have Steam up to run it successfully.
+Download and unzip the repository with a program like WinRar or 7-Zip, then double-click on `launch_game.bat`. You need to have Steam running to launch the game.
 
 ### Linux
-Download this repository and `cd` into it. You will need to install `luasteam.so` for LOVE and `libsteam_api.so` from the Steamworks SDK. A tutorial will be provided in the future. You can then run `love --console .` to run LOVE in the current directory.
+First, install [LÖVE](https://love2d.org). You'll need to have `libsteam_api.so` ready from the [Steamworks SDK](https://partner.steamgames.com/doc/sdk). Take a look at all the DLLs in `engine/love/` to see what libraries you need to have installed. You can then run `love --console .` to run LOVE in the current directory to launch the game.
 
 ## Screenshots
 A modded unit, the Bishop, displayed in the shop

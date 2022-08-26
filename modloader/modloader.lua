@@ -1,17 +1,30 @@
 require 'modloader.modmenu'
-local zip = require 'zip'
-
-ModLoader = {}
 
 local Mod = require("modloader.mod")
 local createGlobals = require("modloader.modglobals")
+
+ModLoader = {}
 
 ModLoader.loadedMods = {}
 ModLoader.heroTierMap = {}
 ModLoader.eventHandlers = {}
 
+ModLoader.loadedMods["snkrx"] = Mod{
+    name = "snkrx",
+    description = "Base game",
+    author = "adn",
+    version = "1.0",
+    main_file = "",
+    mod_folder = ""
+}
+
 function ModLoader.load()
     -- initialize ModLoader state
+
+    -- replace builtin heroes and classes
+    do
+        
+    end
 
     -- load mods from mod folder
     do
@@ -107,25 +120,24 @@ function ModLoader.loadMod(modName)
 end
 
 function ModLoader.unpackModZip(file)
-    local zFile = zip.open(ModLoader.getModsFolder() .. file)
-    if not zFile then return false end
+    local path = "mods/_temp/";
+    local success = love.filesystem.mount("mods/" .. file, "mods/_temp/")
+    if not success then return false end
 
     ModLoader.log("attempting to parse " .. file)
 
-    local modDefinition = zFile:open("mod_data.txt")
+    local modDefinition, err = love.filesystem.read(path .. "mod_data.txt")
 
     if not modDefinition then
-        ModLoader.log("error parsing " .. file .. ": mod_data.txt not found")
+        ModLoader.log("error parsing " .. file .. ": " .. err)
         return false
     end
 
-    local properties, msg = ModLoader.parseModFile(modDefinition)
+    local properties, msg = ModLoader.parseModString(modDefinition)
     if not properties then
         ModLoader.error("error parsing " .. file .. ": " .. msg)
         return false
     end
-
-    modDefinition:close()
 
     local name = properties.name
     if not name then
@@ -150,22 +162,19 @@ function ModLoader.unpackModZip(file)
 
     local failed = false
 
-    for file in zFile:files() do
-        ModLoader.log("unpacking " .. file.filename .. " (" .. math.round(file.uncompressed_size / 1024, 1) .. "KB)")
-        local fileHandle = zFile:open(file.filename)
-        local fileData = fileHandle:read("*a")
+    for _,file in ipairs(system.enumerate_files("mods/_temp")) do
+        local fileName = string.sub(file, string.len("mods/_temp") + 1)
+        ModLoader.log("unpacking " .. fileName)
+        local fileData = love.filesystem.read(file)
 
-        fileHandle:close()
         if fileData ~= nil and fileData ~= "" then
-            if not ModLoader.writeFileInModFolder(name, file.filename, fileData) then
-                ModLoader.error("there was an error writing " .. file.filename)
+            if not ModLoader.writeFileInModFolder(name, fileName, fileData) then
+                ModLoader.error("there was an error writing " .. fileName)
                 failed = true
                 break
             end
         end
     end
-
-    zFile:close()
 
     if failed then
         ModLoader.error("there was an error unpacking " .. name .. ". no changes will be made")
@@ -395,6 +404,17 @@ function ModLoader.parseModFile(fileHandle)
         local kv = line:split("=")
         properties[kv[1]] = kv[2]
         line = fileHandle:read("*l")
+    end
+
+    return properties
+end
+
+function ModLoader.parseModString(fileData)
+    local properties = {}
+
+    for line in fileData:gmatch("([^\n\r]*)[\n\r]?") do
+        local kv = line:split("=")
+        if kv[1] then properties[kv[1]] = kv[2] end
     end
 
     return properties
