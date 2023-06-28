@@ -38,6 +38,17 @@ An example mod can be found [here](https://github.com/sharpdev-me/SNKMD-Example)
 
 I need to know what I need to implement in the API, so please let me know about any ideas you have! You can either send me a message on Discord (SharpDev#1101), or you can open an Issue here on GitHub. Thank you!
 
+## Mods
+
+[HideT3Units](https://github.com/sharpdev-me/HideT3Units)
+
+<hr/>
+
+## Adding Mods
+
+To add a mod, simply drag its zip file to the mods directory.
+The mod directory is located at `C:\Users\<your user>\AppData\Roaming\LOVE\SNKRX\mods` on Windows. If the mods directory does not exist, you can either create it yourself or launch the modloader.
+
 <hr/>
 
 ## Running
