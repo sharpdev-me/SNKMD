@@ -365,6 +365,20 @@ function table.contains(t, v)
   end
 end
 
+function table.rcontains(t, v)
+  if type(v) == "function" then
+    for _, u in pairs(t) do
+      if v(u) then return true end
+    end
+  else
+    for _, u in pairs(t) do
+      if u == v then return true end
+    end
+  end
+
+  return false
+end
+
 
 -- t = {{1, 2}, {3, {4, 5}}, {6, 7}, 8}
 -- table.flatten(t) -> {1, 2, 3, 4, 5, 6, 7, 8}

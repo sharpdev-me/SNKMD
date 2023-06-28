@@ -205,7 +205,9 @@ function BuyScreen:update(dt)
     self:quit_tutorial()
   end
 
-  if input.h.pressed and not self.transitioning and not self.in_tutorial then
+  -- gain gold in debug mode
+  if ModLoader.developerMode and input.h.pressed and not self.transitioning and not self.in_tutorial then
+    _G[random:table{'coins1', 'coins2', 'coins3'}]:play{pitch = random:float(0.95, 1.05), volume = 0.5}
     self:gain_gold(500)
   end
 
@@ -358,6 +360,7 @@ function BuyScreen:set_cards(shop_level, dont_spawn_effect, first_call)
   local unit_3
   local shop_level = shop_level or 1
   local tier_weights = level_to_shop_odds[shop_level]
+
   repeat 
     -- unit_1 = random:table(tier_to_characters[random:weighted_pick(unpack(tier_weights))])
     -- unit_2 = random:table(tier_to_characters[random:weighted_pick(unpack(tier_weights))])
@@ -366,7 +369,7 @@ function BuyScreen:set_cards(shop_level, dont_spawn_effect, first_call)
     unit_2 = ModLoader.randomHero(tier_weights)
     unit_3 = ModLoader.randomHero(tier_weights)
     all_units = {unit_1, unit_2, unit_3}
-  until not table.all(all_units, function(v) return table.any(non_attacking_characters, function(u) return v == u end) end)
+  until ModLoader.verifyShopConditions(all_units, self)
   if first_call and locked_state then
     -- TODO: handle locking modded units
     if locked_state.cards[1] then self.cards[1] = ShopCard{group = self.main, x = 60, y = 75, w = 80, h = 90, unit = locked_state.cards[1], parent = self, i = 1} end
@@ -1803,7 +1806,7 @@ function CharacterIcon:on_mouse_enter()
   local modded = type(self.character == "table") and self.character.name ~= nil
   local characterColorText = modded and self.character:distinctName() or character_color_strings[self.character]
   local classDisplayString = modded and self.character:createClassString() or character_class_strings[self.character]
-  local characterDescription = modded and self.character:getDescription(self.level) or character_descriptions[self.character](self.level)
+  local characterDescription = modded and self.character:getDescription(self.level or 1) or character_descriptions[self.character](self.level or 1)
   local effectName = modded and self.character:getLevelThree():getString(self.level == 3) or (self.level == 3 and character_effect_names[self.character] or character_effect_names_gray[self.character])
   local effectDescription = modded and self.character:getLevelThree():getDescription(self.level == 3) or (self.level == 3 and character_effect_descriptions[self.character]() or character_effect_descriptions_gray[self.character]())
   
@@ -1985,9 +1988,11 @@ function ClassIcon:draw()
     local cString = '[' .. (class_color_strings[self.class] or self.class:distinctName()) .. ']'
 
     local leftColor
-    if n >= class_numbers[#class_numbers] then
+    --[[if n >= class_numbers[#class_numbers] then
       leftColor = cString
-    else leftColor = "[yellow]" end
+    else leftColor = "[yellow]" end--]]
+
+    leftColor = cString
 
     self.text:set_text({
       {text = leftColor .. n .. "[white]/" .. cString .. class_numbers[#class_numbers], font = pixul_font, alignment = 'center'}

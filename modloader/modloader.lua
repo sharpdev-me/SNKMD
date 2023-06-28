@@ -1,11 +1,25 @@
 require 'modloader.modmenu'
 
+-- replace this when you turn the base game into a "mod"
+local default_passive_pool = {
+    'centipede', 'ouroboros_technique_r', 'ouroboros_technique_l', 'amplify', 'resonance', 'ballista', 'call_of_the_void', 'crucio', 'speed_3', 'damage_4', 'shoot_5', 'death_6', 'lasting_7',
+    'defensive_stance', 'offensive_stance', 'kinetic_bomb', 'porcupine_technique', 'last_stand', 'seeping', 'deceleration', 'annihilation', 'malediction', 'hextouch', 'whispers_of_doom',
+    'tremor', 'heavy_impact', 'fracture', 'meat_shield', 'hive', 'baneling_burst', 'blunt_arrow', 'explosive_arrow', 'divine_machine_arrow', 'chronomancy', 'awakening', 'divine_punishment',
+    'assassination', 'flying_daggers', 'ultimatum', 'magnify', 'echo_barrage', 'unleash', 'reinforce', 'payback', 'enchanted', 'freezing_field', 'burning_field', 'gravity_field', 'magnetism',
+    'insurance', 'dividends', 'berserking', 'unwavering_stance', 'unrelenting_stance', 'blessing', 'haste', 'divine_barrage', 'orbitism', 'psyker_orbs', 'psychosink', 'rearm', 'taunt', 'construct_instability',
+    'intimidation', 'vulnerability', 'temporal_chains', 'ceremonial_dagger', 'homing_barrage', 'critical_strike', 'noxious_strike', 'infesting_strike', 'burning_strike', 'lucky_strike', 'healing_strike', 'stunning_strike',
+    'silencing_strike', 'culling_strike', 'lightning_strike', 'psycholeak', 'divine_blessing', 'hardening', 'kinetic_strike',
+}
+
 local Mod = require("modloader.mod")
 local createGlobals = require("modloader.modglobals")
 
 ModLoader = {}
 
+ModLoader.developerMode = false
+
 ModLoader.loadedMods = {}
+ModLoader.enabledMods = {}
 ModLoader.heroTierMap = {}
 ModLoader.eventHandlers = {}
 
@@ -17,6 +31,10 @@ ModLoader.loadedMods["snkrx"] = Mod{
     main_file = "",
     mod_folder = ""
 }
+
+ModLoader.loadedMods["snkrx"]:addShopCondition(function(all_units)
+    return not table.all(all_units, function(v) return table.any(non_attacking_characters, function(u) return v == u end) end)
+end)
 
 function ModLoader.load()
     -- initialize ModLoader state
@@ -42,8 +60,19 @@ function ModLoader.load()
                 if r then ModLoader.loadMod(r) end
             end
         end
+        ModLoader.pushEvent("mods_loaded", ModLoader.loadedMods)
+    end
 
-        ModLoader.pushEvent("mods_loaded", unpack(ModLoader.loadedMods))
+    -- enable mods
+    do
+        if not system.does_file_exist(ModLoader.getModsFolder() .. "enabled.txt") then
+            ModLoader.enableMod("snkrx")
+            ModLoader.writeEnabledMods()
+        else
+            for _,v in ipairs(ModLoader.readEnabledMods()) do
+                ModLoader.enableMod(v)
+            end
+        end
     end
 
     ModLoader.pushEvent("modloader_done")
@@ -124,12 +153,12 @@ function ModLoader.unpackModZip(file)
     local success = love.filesystem.mount("mods/" .. file, "mods/_temp/")
     if not success then return false end
 
-    ModLoader.log("attempting to parse " .. file)
+    ModLoader.debug("attempting to parse " .. file)
 
     local modDefinition, err = love.filesystem.read(path .. "mod_data.txt")
 
     if not modDefinition then
-        ModLoader.log("error parsing " .. file .. ": " .. err)
+        ModLoader.error("error parsing " .. file .. ": " .. err)
         return false
     end
 
@@ -151,7 +180,7 @@ function ModLoader.unpackModZip(file)
         return false
     end
 
-    ModLoader.log("finished parsing " .. name .. ". beginning to unpack")
+    ModLoader.debug("finished parsing " .. name .. ". beginning to unpack")
 
     if ModLoader.modExists(name) then
         ModLoader.error("error unpacking " .. name .. ": directory already exists")
@@ -164,7 +193,7 @@ function ModLoader.unpackModZip(file)
 
     for _,file in ipairs(system.enumerate_files("mods/_temp")) do
         local fileName = string.sub(file, string.len("mods/_temp") + 1)
-        ModLoader.log("unpacking " .. fileName)
+        ModLoader.debug("unpacking " .. fileName)
         local fileData = love.filesystem.read(file)
 
         if fileData ~= nil and fileData ~= "" then
@@ -187,7 +216,7 @@ function ModLoader.unpackModZip(file)
         return false
     end
 
-    ModLoader.log("finished unpacking " .. name .. "!")
+    ModLoader.log("finished unpacking " .. name)
 
     return name
 end
@@ -196,8 +225,8 @@ function ModLoader.removeHero(mod, hero)
     if mod == nil then
         -- remove hero from base game here
     else
-        if type(mod) == "string" and ModLoader.loadedMods[mod] then
-            mod = ModLoader.loadedMods[mod]
+        if type(mod) == "string" and ModLoader.enabledMods[mod] then
+            mod = ModLoader.enabledMods[mod]
         end
         if type(hero) == "string" then
             mod._heroes[hero] = nil
@@ -209,8 +238,8 @@ end
 
 function ModLoader.replaceHero(mod, newmod, hero)
     ModLoader.removeHero(mod, hero)
-    if type(newmod) == "string" and ModLoader.loadedMods[newmod] then
-        newmod = ModLoader.loadedMods[newmod]
+    if type(newmod) == "string" and ModLoader.enabledMods[newmod] then
+        newmod = ModLoader.enabledMods[newmod]
     end
     newmod:createHero(hero)
 end
@@ -225,7 +254,7 @@ end
 
 function ModLoader.aggregateHeroes()
     local aggregate = {}
-    for _, mod in pairs(ModLoader.loadedMods) do
+    for _, mod in pairs(ModLoader.enabledMods) do
         for _, hero in pairs(mod._heroes) do
             table.insert(aggregate, hero)
         end
@@ -235,7 +264,7 @@ end
 
 function ModLoader.aggregateClasses()
     local aggregate = {}
-    for _, mod in pairs(ModLoader.loadedMods) do
+    for _, mod in pairs(ModLoader.enabledMods) do
         for _, class in pairs(mod._classes) do
             table.insert(aggregate, class)
         end
@@ -243,7 +272,49 @@ function ModLoader.aggregateClasses()
     return aggregate
 end
 
-function ModLoader.randomHero(tier_weights)
+function ModLoader.aggregateItems()
+    local aggregate = {}
+    for _, mod in pairs(ModLoader.enabledMods) do
+        for _, item in pairs(mod._items) do
+            table.insert(aggregate, item)
+        end
+    end
+
+    return aggregate
+end
+
+function ModLoader.aggregateShopConditions()
+    local aggregate = {}
+    for _, mod in pairs(ModLoader.enabledMods) do
+        for _, condition in pairs(mod._shopConditions) do
+            table.insert(aggregate, condition)
+        end
+    end
+
+    return aggregate
+end
+
+function ModLoader.aggregateX(key)
+    local aggregate = {}
+    for _, mod in pairs(ModLoader.enabledMods) do
+        for _, x in pairs(mod[key]) do
+            table.insert(aggregate, x)
+        end
+    end
+
+    return aggregate
+end
+
+function ModLoader.verifyShopConditions(all_units, buyScreen)
+    for _,v in ipairs(ModLoader.aggregateShopConditions()) do
+        if not v(all_units, buyScreen) then return false end
+    end
+
+    return true
+end
+
+function ModLoader.randomHero(tier_weights, except_heroes)
+    except_heroes = except_heroes or {}
     -- unit_1 = random:table(tier_to_characters[random:weighted_pick(unpack(tier_weights))])
     local tier = random:weighted_pick(unpack(tier_weights))
 
@@ -251,8 +322,33 @@ function ModLoader.randomHero(tier_weights)
     -- local combined = {}
 
     for _, hero in pairs(ModLoader.aggregateHeroes()) do
-        if hero.tier == tier then table.insert(combined, hero) end
+        if hero.tier == tier then
+            table.insert(combined, hero)
+        end
     end
+
+    for i,v in ipairs(combined) do
+        if table.contains(except_heroes, v) then table.remove(combined, i) end
+    end
+
+    return random:table(combined)
+end
+
+function ModLoader.randomItem(current_items)
+    -- after you convert all the vanilla stuff into a "mod", you won't need this part
+    local combined = table.shallow_copy(default_passive_pool)
+    -- local combined = {}
+    combined = table.reject(combined, function(v)
+        return not table.contains(current_items, v)
+    end)
+
+    for _, item in pairs(ModLoader.aggregateItems()) do
+        if not table.any(current_items, function(v)
+            return type(v) == "table" and v:distinctName() == item:distinctName()
+        end) then table.insert(combined, item) end
+    end
+
+    -- for i,v in ipairs(combined) do print(i,v) end
 
     return random:table(combined)
 end
@@ -280,10 +376,13 @@ end
 
 function ModLoader.pushEvent(eventName, ...)
     local event = {cancelled = false}
+    local i = 0
     for _,h in pairs(ModLoader.eventHandlers[eventName] or {}) do
+        i = i + 1
         h.handler(h, event, ...)
         if event.cancelled then break end
     end
+    ModLoader.debug("pushed event " .. eventName .. " (" .. i .. ")")
     return event
 end
 
@@ -337,6 +436,42 @@ function ModLoader.stringifyRun(run)
     return r
 end
 
+function ModLoader.isModEnabled(mod)
+    if type(mod) == "table" then
+        return table.rcontains(ModLoader.enabledMods, mod)
+    else
+        return ModLoader.enabledMods[mod] ~= nil
+    end
+end
+
+function ModLoader.enableMod(mod)
+    if type(mod) == "table" then
+        ModLoader.log("enabling " .. mod.name)
+        ModLoader.enabledMods[mod.name] = mod
+        ModLoader.pushEvent("mod_enabled", mod)
+    else
+        ModLoader.log("enabling " .. mod)
+        ModLoader.enabledMods[mod] = ModLoader.loadedMods[mod]
+        ModLoader.pushEvent("mod_enabled", ModLoader.enabledMods[mod])
+    end
+
+    ModLoader.writeEnabledMods()
+end
+
+function ModLoader.disableMod(mod)
+    if type(mod) == "table" then
+        ModLoader.enabledMods[mod.name] = nil
+        ModLoader.log("disabling " .. mod.name)
+        ModLoader.pushEvent("mod_disabled", mod)
+    else
+        ModLoader.log("disabling " .. mod)
+        ModLoader.pushEvent("mod_disabled", ModLoader.enabledMods[mod])
+        ModLoader.enabledMods[mod] = nil
+    end
+
+    ModLoader.writeEnabledMods()
+end
+
 function ModLoader.parse_run(run)
     if run.units then
         local newUnits = table.shallow_copy(run.units)
@@ -345,7 +480,7 @@ function ModLoader.parse_run(run)
         for _, unit in ipairs(newUnits) do
             local add = true
             if unit.hero then
-                local mod = ModLoader.loadedMods[unit.hero.mod]
+                local mod = ModLoader.enabledMods[unit.hero.mod]
                 if mod then
                     unit.hero = mod._heroes[unit.hero.name]
                 else add = false end
@@ -361,7 +496,7 @@ function ModLoader.parse_run(run)
 
         for _, card in ipairs(newCards) do
             if type(card) == "table" then
-                local mod = ModLoader.loadedMods[card.mod]
+                local mod = ModLoader.enabledMods[card.mod]
                 if mod then
                     table.insert(run.locked_state.cards, mod._heroes[card.name])
                 end
@@ -431,8 +566,42 @@ function ModLoader.writeFileInModFolder(modName, file, contents)
     return true
 end
 
+function ModLoader.writeEnabledMods()
+    local v = {}
+    for k,_ in pairs(ModLoader.enabledMods) do
+        table.insert(v, k)
+    end
+    local contents = table.concat(v, "\n")
+    local success, msg = love.filesystem.write("mods/enabled.txt", contents)
+    if not success then
+        ModLoader.error("error writing enabled mods: " .. msg)
+        return false
+    end
+
+    return true
+end
+
+function ModLoader.readEnabledMods()
+    local contents, error = love.filesystem.read("mods/enabled.txt")
+    if contents == nil then
+        ModLoader.error("error reading enabled mods: " .. error)
+        return {}
+    end
+
+    local v = {}
+    for w in string.gmatch(contents, "([^\n]+)") do table.insert(v, w) end
+
+    return v
+end
+
 function ModLoader.log(msg)
     io.stdout:write("[SNKMD] " .. msg .. "\n")
+    io.stdout:flush()
+end
+
+function ModLoader.debug(msg)
+    if not ModLoader.developerMode then return end
+    io.stdout:write("[SNKMD][D] " .. msg .. "\n")
     io.stdout:flush()
 end
 

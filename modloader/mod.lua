@@ -9,9 +9,13 @@ return function(data)
     mod.version = data.version
     mod._main_file = data.main_file
     mod._mod_folder = data.mod_folder
+    mod.modCard = {}
 
     mod._heroes = {}
     mod._classes = {}
+    mod._items = {}
+
+    mod._shopConditions = {}
 
     function mod:getConfigurationFolder()
         return self._mod_folder .. "/config"
@@ -26,8 +30,8 @@ return function(data)
     end
 
     function mod:getConfiguration()
-        if mod.configuration then
-            return mod.configuration
+        if self.configuration then
+            return self.configuration
         else
             local configPath = self:getConfigurationFolder() .. "/config.lua"
             local configChunk, err = love.filesystem.load(configPath)
@@ -36,14 +40,36 @@ return function(data)
                 return nil, err
             end
 
-            mod.configuration = configChunk()
+            self.configuration = configChunk()
 
-            return mod.configuration
+            return self.configuration
         end
     end
 
     function mod:addEventHandler(eventName, handler)
         return ModLoader.addEventHandler(eventName, handler)
+    end
+
+    function mod:getModCardData()
+        -- make the default mod card data here
+        -- if one of the fields from self#setModCardData(modCardData) is missing, then replace it with the default value
+        local v = {}
+        v.name = self.modCard.name or self.name
+        v.image = self.modCard.image or meat_shield
+
+        return v
+    end
+
+    function mod:setModCardData(modCardData)
+        if type(modCardData) ~= "table" then
+            self:error("modCardData is not of type \"table\"")
+            return
+        end
+        self.modCard = modCardData
+    end
+
+    function mod:isEnabled()
+        return ModLoader.isModEnabled(self)
     end
 
     function mod:log(msg)
@@ -54,6 +80,15 @@ return function(data)
     function mod:error(msg)
         io.stderr:write("[" .. self.name .. "][ERROR] " .. msg .. "\n")
         io.stderr:flush()
+    end
+
+    function mod:addShopCondition(comp)
+        if type(comp) ~= "function" then
+            mod:error("shop condition comp was not of type \"function\"")
+            return
+        end
+
+        table.insert(self._shopConditions, comp)
     end
 
     function mod:createHero(definition)
@@ -102,9 +137,29 @@ return function(data)
         return class
     end
 
+    function mod:createItem(definition)
+        definition.name = definition.name or "ModItem"
+        if self._items[definition.name] then return nil, "item already exists" end
+        definition.description = definition.description or "ModItemDescription"
+        definition.levels = definition.levels or {2,3}
+        definition.image = definition.image or _G["ultimatum"]
+
+        definition.mod = self
+
+        local item = ModTypes.Item(definition)
+
+        self._items[item.name] = item
+
+        return item
+    end
+
     -- Should only be called in the arena
     function mod:getAllUnits()
         return main.current.units
+    end
+
+    function mod:disableMod()
+        ModLoader.disableMod(self)
     end
 
     return mod

@@ -121,6 +121,24 @@ function ModTypes.Class(definition)
     return class
 end
 
+function ModTypes.Item(definition)
+    local item = table.shallow_copy(definition)
+
+    function item:distinctName()
+        return self.mod.name .. self.name
+    end
+
+    function item:getDescription(level)
+        if type(self.description) == "function" then return self:description(level) else return self.description end
+    end
+
+    function item:getLevel()
+        -- figure out its level here
+    end
+
+    return item
+end
+
 -- The base Image class.
 ModTypes.ModImage = Object:extend()
 function ModTypes.ModImage:init(mod, image_path)
