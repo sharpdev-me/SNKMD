@@ -36,10 +36,11 @@ An example mod can be found [here](https://github.com/sharpdev-me/SNKMD-Example)
 
 ## Mod Ideas
 
-I need to know what I need to implement in the API, so please let me know about any ideas you have! You can either send me a message on Discord (SharpDev#1101), or you can open an Issue here on GitHub. Thank you!
+I need to know what I need to implement in the API, so please let me know about any ideas you have! You can either send me a message on Discord (sharpdev), or you can open an Issue here on GitHub. Thank you!
 
 ## Mods
 
+[Example Mod](https://github.com/sharpdev-me/SNKMD-Example)
 [HideT3Units](https://github.com/sharpdev-me/HideT3Units)
 
 <hr/>
