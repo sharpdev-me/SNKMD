@@ -182,6 +182,14 @@ end
 
 
 function Unit:bounce(nx, ny)
+  -- make sure the normal is actually normal <3
+  if nx > 0 and nx < 1 then nx = math.round(nx, 0) end
+  if nx < 0 and nx > -0.5 then nx = 0 end
+  if nx < -0.5 then nx = -1 end
+  if ny > 0 and ny < 1 then ny = math.round(ny, 0) end
+  if ny < 0 and ny > -0.5 then ny = 0 end
+  if ny < -0.5 then ny = -1 end
+  
   local vx, vy = self:get_velocity()
   if nx == 0 then
     self:set_velocity(vx, -vy)

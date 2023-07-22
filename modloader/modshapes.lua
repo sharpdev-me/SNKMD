@@ -40,6 +40,25 @@ function OpenCircle:scale(v)
     self.shape = Circle(self.x, self.y, (v or 1)*self.rs)
 end
 
+local NewWall = Object:extend()
+NewWall:implement(GameObject)
+NewWall:implement(Physics)
+
+function NewWall:init(args)
+    self:init_game_object(args)
+    self:set_as_rectangle(self.w, self.h, "static", "solid")
+    self.color = self.color or fg[0]
+end
+
+function NewWall:update(dt)
+    self:update_game_object(dt)
+end
+
+function NewWall:draw()
+    self.shape:draw(self.color)
+end
+
+ModShapes.NewWall = NewWall
 ModShapes.OpenCircle = OpenCircle
 
 return ModShapes

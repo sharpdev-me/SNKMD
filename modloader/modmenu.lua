@@ -61,10 +61,13 @@ end
 
 function ModMenu:update(dt)
     self.t:update(dt*slow_amount)
+    star_group:update(dt*slow_amount)
+
+    self.main_ui:update(dt*slow_amount)
+    self.title_text:update(dt)
 
     if not self.paused and not self.transitioning then
-        star_group:update(dt*slow_amount)
-        self.main_ui:update(dt*slow_amount)
+        
     end
 end
 
@@ -154,7 +157,7 @@ function ModCard:draw()
     
         graphics.rectangle(self.x, self.y, self.w, self.h, 5, 5, bg[2])
         self.title_text:draw(self.x, self.y - 17)
-        self.data.image:draw(self.x, self.y - 3, 0, 0.5, 0.5)
+        self.data.image:draw(self.x, self.y - 3, 0, self.data.image_scale_x or 0.5, self.data.image_scale_y or 0.5)
         self.toggle_button:draw()
 
     graphics.pop()

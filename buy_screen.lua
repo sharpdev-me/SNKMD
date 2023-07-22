@@ -410,7 +410,7 @@ function BuyScreen:set_items()
   local y = 182
   for k, passive in ipairs(self.passives) do
     local i, j = math.index_to_coordinates(k, 4)
-    table.insert(self.items, ItemCard{group = self.main, x = 45 + (i-1)*60, y = y + (j-1)*50, w = 40, h = 50, passive = passive.passive , level = passive.level, xp = passive.xp, parent = self, i = k})
+    table.insert(self.items, ItemCard{group = self.main, x = 45 + (i-1)*60, y = y + (j-1)*50, w = 40, h = 50, passive = passive.passive , level = passive.level, xp = passive.xp, item = passive, parent = self, i = k})
   end
 end
 
@@ -1385,8 +1385,18 @@ function PassiveCard:init(args)
   self:init_game_object(args)
   self.shape = Rectangle(self.x, self.y, self.w, self.h)
   self.interact_with_mouse = true
-  self.passive_name =  Text({{text = '[fg, wavy_mid]' .. passive_names[self.passive], font = pixul_font, alignment = 'center'}}, global_text_tags)
-  self.passive_description = passive_descriptions[self.passive]
+  self.modded = ModLoader.isXModded(self.passive)
+  local passive_name
+  local passive_description
+  if self.modded then
+    passive_name = self.passive.name
+    passive_description = self.passive:getDescription()
+  else
+    passive_name = passive_names[self.passive]
+    passive_description = passive_descriptions[self.passive]
+  end
+  self.passive_name =  Text({{text = '[fg, wavy_mid]' .. passive_name, font = pixul_font, alignment = 'center'}}, global_text_tags)
+  self.passive_description = passive_description
   self.spring:pull(0.2, 200, 10)
 end
 
@@ -1398,6 +1408,7 @@ function PassiveCard:update(dt)
   if ((self.selected and input.m1.pressed) or input[tostring(self.card_i)].pressed) and self.arena.choosing_passives then
     self.arena.choosing_passives = false
     table.insert(self.arena.passives, {passive = self.passive, level = 1, xp = 0})
+    if ModLoader.isXModded(self.passive) and self.passive.on_buy ~= nil then self.passive:on_buy() end
     self.arena:restore_passives_to_pool(self.card_i)
     trigger:tween(0.25, _G, {slow_amount = 1, music_slow_amount = 1}, math.linear, function()
       slow_amount = 1
@@ -1411,9 +1422,15 @@ end
 
 
 function PassiveCard:draw()
+  local image
+  if ModLoader.isXModded(self.passive) then
+    image = self.passive.image
+  else
+    image = _G[self.passive]
+  end
   graphics.push(self.x, self.y, 0, self.sx*self.spring.x, self.sy*self.spring.x)
     self.passive_name:draw(self.x, self.y - 20)
-    _G[self.passive]:draw(self.x, self.y + 24, 0, 1, 1, 0, 0, fg[0])
+    image:draw(self.x, self.y + 24, 0, 1, 1, 0, 0, fg[0])
   graphics.pop()
 end
 
@@ -1456,10 +1473,29 @@ function ItemCard:init(args)
   self:init_game_object(args)
   self.shape = Rectangle(self.x, self.y, self.w, self.h)
   self.interact_with_mouse = true
-  self.max_xp = (self.level == 0 and 0) or (self.level == 1 and 2) or (self.level == 2 and 3) or (self.level == 3 and 0)
+  self:calculateMaxXP()
+  self:calculateXPCost()
   self.unlevellable = table.any(unlevellable_items, function(v) return v == self.passive end)
 end
 
+function ItemCard:calculateMaxXP()
+  if ModLoader.isXModded(self.passive) then
+    self.max_xp = self.passive.levels[self.level]
+    if self.max_xp == nil then self.max_xp = 0 end
+  else self.max_xp = (self.level == 0 and 0) or (self.level == 1 and 2) or (self.level == 2 and 3) or (self.level == 3 and 0) end
+end
+
+function ItemCard:calculateXPCost()
+  if ModLoader.isXModded(self.passive) then
+    self.xp_cost = self.passive.xp_cost
+  else self.xp_cost = 5 end
+end
+
+function ItemCard:getSellCost()
+  if ModLoader.isXModded(self.passive) then
+    return self.passive:getSellCost(self.level)
+  else return self.level * 10 end
+end
 
 function ItemCard:update(dt)
   self:update_game_object(dt)
@@ -1468,7 +1504,7 @@ function ItemCard:update(dt)
 
   if self.selected and input.m1.pressed and not self.unlevellable then
     if self.level >= 3 then return end
-    if gold < 5 then
+    if gold < self.xp_cost then
       self.spring:pull(0.2, 200, 10)
       self.selected = true
       error1:play{pitch = random:float(0.95, 1.05), volume = 0.5}
@@ -1486,7 +1522,7 @@ function ItemCard:update(dt)
       if self.xp >= self.max_xp then
         self.xp = 0
         self.level = self.level + 1
-        self.max_xp = (self.level == 0 and 0) or (self.level == 1 and 2) or (self.level == 2 and 3) or (self.level == 3 and 0)
+        self:calculateMaxXP()
         if self.level == 2 then spawn_mark1:play{pitch = 1, volume = 0.6} end
         if self.level == 3 then
           spawn_mark1:play{pitch = 1.2, volume = 0.6}
@@ -1496,13 +1532,11 @@ function ItemCard:update(dt)
       self:create_info_text()
       self.selected = true
       self.spring:pull(0.2, 200, 10)
-      gold = gold - 5
-      for _, passive in ipairs(self.parent.passives) do
-        if passive.passive == self.passive then
-          passive.level = self.level
-          passive.xp = self.xp
-        end
-      end
+      gold = gold - self.xp_cost
+      self.item.level = self.level
+      self.item.xp = self.xp
+      if ModLoader.isXModded(self.passive) and self.passive.on_upgrade then self.passive:on_upgrade(self.level, self.xp) end
+
       self.parent.shop_text:set_text{{text = '[wavy_mid, fg]shop [fg]- [fg, nudge_down]gold: [yellow, nudge_down]' .. gold, font = pixul_font, alignment = 'center'}}
       self.text = Text({{text = '[bg10]' .. tostring(self.parent.shop_level), font = pixul_font, alignment = 'center'}}, global_text_tags)
       system.save_run(self.parent.level, self.parent.loop, gold, self.parent.units, self.parent.passives, self.parent.shop_level, self.parent.shop_xp, run_passive_pool, locked_state)
@@ -1511,9 +1545,10 @@ function ItemCard:update(dt)
 
   if self.selected and input.m2.pressed then
     _G[random:table{'coins1', 'coins2', 'coins3'}]:play{pitch = random:float(0.95, 1.05), volume = 0.5}
-    self.parent:gain_gold((self.level == 1 and 10) or (self.level == 2 and 20) or (self.level == 3 and 30))
-    table.insert(run_passive_pool, self.passive)
+    self.parent:gain_gold(self:getSellCost())
+    -- TODO fix this
     table.remove(self.parent.passives, self.i)
+    if ModLoader.isXModded(self.passive) and self.passive.on_sell then self.passive:on_sell(self.level, self.xp) end
     input.m2.pressed = false
     self.parent:set_items()
     system.save_run(self.parent.level, self.parent.loop, gold, self.parent.units, self.parent.passives, self.parent.shop_level, self.parent.shop_xp, run_passive_pool, locked_state)
@@ -1522,20 +1557,28 @@ end
 
 
 function ItemCard:draw()
+  local image
+  if ModLoader.isXModded(self.passive) then
+    image = self.passive.image
+  else
+    image = _G[self.passive]
+  end
   graphics.push(self.x, self.y, 0, self.sx*self.spring.x, self.sy*self.spring.x)
     if self.selected then
       graphics.rectangle(self.x, self.y, self.w, self.h, 6, 6, bg[-1])
     end
-    _G[self.passive]:draw(self.x, self.y, 0, 0.8, 0.7, 0, 0, fg[0])
+    image:draw(self.x, self.y, 0, 0.8, 0.7, 0, 0, fg[0])
     if not self.unlevellable and not self.parent:is(Arena) then
-      local x, y = self.x + self.w/2.5, self.y - self.h/2.5
-      if self.level == 1 then
-        graphics.rectangle(x - 2, y, 2, 2, nil, nil, self.xp >= 1 and fg[0] or bg[5])
-        graphics.rectangle(x + 2, y, 2, 2, nil, nil, bg[5])
-      elseif self.level == 2 then
-        graphics.rectangle(x - 4, y, 2, 2, nil, nil, self.xp >= 1 and fg[0] or bg[5])
-        graphics.rectangle(x, y, 2, 2, nil, nil, self.xp >= 2 and fg[0] or bg[5])
-        graphics.rectangle(x + 4, y, 2, 2, nil, nil, bg[5])
+      if self.max_xp > 0 then
+        local x, y = self.x + self.w/2.5, self.y - self.h/2.5
+        if self.level == 1 then
+          graphics.rectangle(x - 2, y, 2, 2, nil, nil, self.xp >= 1 and fg[0] or bg[5])
+          graphics.rectangle(x + 2, y, 2, 2, nil, nil, bg[5])
+        elseif self.level == 2 then
+          graphics.rectangle(x - 4, y, 2, 2, nil, nil, self.xp >= 1 and fg[0] or bg[5])
+          graphics.rectangle(x, y, 2, 2, nil, nil, self.xp >= 2 and fg[0] or bg[5])
+          graphics.rectangle(x + 4, y, 2, 2, nil, nil, bg[5])
+        end
       end
     end
   graphics.pop()
@@ -1548,20 +1591,25 @@ function ItemCard:create_info_text()
     self.info_text.dead = true
   end
   self.info_text = nil
+
+  local m = ModLoader.isXModded(self.passive)
+  local passive_name = m and self.passive.name or passive_names[self.passive]
+  local passive_description = m and self.passive:getDescription(self.level) or passive_descriptions_level[self.passive](self.level)
+
   if self.level == 3 or self.unlevellable then
     self.info_text = InfoText{group = main.current.ui, force_update = true}
     self.info_text:activate({
-      {text = '[fg]' .. passive_names[self.passive] .. ', [yellow]Lv.' .. self.level, font = pixul_font, alignment = 'center',
+      {text = '[fg]' .. passive_name .. ', [yellow]Lv.' .. self.level, font = pixul_font, alignment = 'center',
         height_multiplier = 1.25},
-      {text = passive_descriptions_level[self.passive](self.level), font = pixul_font, alignment = 'center', height_multiplier = 1.25},
+      {text = passive_description, font = pixul_font, alignment = 'center', height_multiplier = 1.25},
     }, nil, nil, nil, nil, 16, 4, nil, 2)
     self.info_text.x, self.info_text.y = gw/2, gh/2 + 10
   else
     self.info_text = InfoText{group = main.current.ui, force_update = true}
     self.info_text:activate({
-      {text = '[fg]' .. passive_names[self.passive] .. ', [yellow]Lv.' .. self.level .. '[fg], XP: [yellow]' .. self.xp .. '/' .. self.max_xp .. '[fg], +1 XP cost: [yellow]5[fg], sells for: [yellow]' .. 
-        tostring((self.level == 1 and 10) or (self.level == 2 and 20) or (self.level == 3 and 30)), font = pixul_font, alignment = 'center', height_multiplier = 1.25},
-      {text = passive_descriptions_level[self.passive](self.level), font = pixul_font, alignment = 'center', height_multiplier = 1.25},
+      {text = '[fg]' .. passive_name .. ', [yellow]Lv.' .. self.level .. '[fg], XP: [yellow]' .. self.xp .. '/' .. self.max_xp .. '[fg], +1 XP cost: [yellow]' .. self.xp_cost .. '[fg], sells for: [yellow]' .. 
+        tostring(self:getSellCost()), font = pixul_font, alignment = 'center', height_multiplier = 1.25},
+      {text = passive_description, font = pixul_font, alignment = 'center', height_multiplier = 1.25},
     }, nil, nil, nil, nil, 16, 4, nil, 2)
     self.info_text.x, self.info_text.y = gw/2, gh/2 + 10
   end

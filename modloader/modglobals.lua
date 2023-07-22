@@ -1,12 +1,15 @@
 local ModShapes = require 'modloader.modshapes'
 local ModTypes = require 'modloader.modtypes'
+local JSON = require 'modloader.external.json'
 local orginal_path = love.filesystem.getRequirePath()
 
-function ExtraGlobals(mod)
+local function ExtraGlobals(mod)
     love.filesystem.setRequirePath(orginal_path .. ";" .. mod._mod_folder .. "/?.lua;" .. "mods/?.lua")
     return {
         Shapes = ModShapes,
-        Types = ModTypes
+        Types = ModTypes,
+        JSON = JSON,
+        print = mod.print
     }
 end
 

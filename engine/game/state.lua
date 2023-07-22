@@ -43,6 +43,7 @@ end
 function State:enter(from, ...)
   self.active = true
   if self.on_enter then self:on_enter(from, ...) end
+  ModLoader.pushEvent("enter_state", self)
 end
 
 

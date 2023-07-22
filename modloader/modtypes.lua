@@ -62,6 +62,10 @@ ModTypes.Hero = setmetatable({
             return ModTypes.LevelThree.default(self)
         end
 
+        function hero:setRepeat(func)
+            self.repeat_func = func
+        end
+
         return hero
     end
 })
@@ -132,8 +136,28 @@ function ModTypes.Item(definition)
         if type(self.description) == "function" then return self:description(level) else return self.description end
     end
 
+    function item:getSellCost(level)
+        local sellCost = 10
+        if level == 1 then return sellCost end
+        repeat
+            level = level - 1
+            sellCost = sellCost + self.levels[level]
+        until level <= 1
+
+        return sellCost
+    end
+
     function item:getLevel()
-        -- figure out its level here
+        local arena = ModLoader.getArena()
+        if not arena then return -1 end
+
+        for _,v in ipairs(arena.passives) do
+            if ModLoader.isXModded(v.passive) and v.passive:distinctName() == self:distinctName() then
+                return v.level
+            end
+        end
+
+        return -1
     end
 
     return item
@@ -177,7 +201,7 @@ local function LevelThree(definition)
     end
 
     function levelThree:getDescription(isActive)
-        local text = type(self.description) == "table" and self.description(self) or self.description
+        local text = type(self.description) == "function" and self.description(self) or self.description
         if not isActive then return "[light_bg]" .. text:gsub("%[%w+%]", "") else return "[fg]" .. text end
     end
 

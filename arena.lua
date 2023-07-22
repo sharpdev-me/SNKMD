@@ -83,6 +83,7 @@ function Arena:on_enter(from, level, loop, units, passives, shop_level, shop_xp,
   Wall{group = self.main, vertices = math.to_rectangle_vertices(self.x2, -40, gw + 40, gh + 40), color = bg[-1]}
   Wall{group = self.main, vertices = math.to_rectangle_vertices(self.x1, -40, self.x2, self.y1), color = bg[-1]}
   Wall{group = self.main, vertices = math.to_rectangle_vertices(self.x1, self.y2, self.x2, gh + 40), color = bg[-1]}
+
   WallCover{group = self.post_main, vertices = math.to_rectangle_vertices(-40, -40, self.x1, gh + 40), color = bg[-1]}
   WallCover{group = self.post_main, vertices = math.to_rectangle_vertices(self.x2, -40, gw + 40, gh + 40), color = bg[-1]}
   WallCover{group = self.post_main, vertices = math.to_rectangle_vertices(self.x1, -40, self.x2, self.y1), color = bg[-1]}
@@ -462,7 +463,7 @@ function Arena:quit()
           }}
         end
         for i, passive in ipairs(self.passives) do
-          ItemCard{group = self.ui, x = 120 + (i-1)*30, y = 20, w = 30, h = 45, sx = 0.75, sy = 0.75, force_update = true, passive = passive.passive , level = passive.level, xp = passive.xp, parent = self}
+          ItemCard{group = self.ui, x = 120 + (i-1)*30, y = 20, w = 30, h = 45, sx = 0.75, sy = 0.75, force_update = true, item = passive, passive = passive.passive , level = passive.level, xp = passive.xp, parent = self}
         end
 
         if current_new_game_plus == 6 then
@@ -697,7 +698,7 @@ function Arena:quit()
           }}
         end
         for i, passive in ipairs(self.passives) do
-          ItemCard{group = self.ui, x = 120 + (i-1)*30, y = gh - 30, w = 30, h = 45, sx = 0.75, sy = 0.75, force_update = true, passive = passive.passive , level = passive.level, xp = passive.xp, parent = self}
+          ItemCard{group = self.ui, x = 120 + (i-1)*30, y = gh - 30, w = 30, h = 45, sx = 0.75, sy = 0.75, force_update = true, item = passive, passive = passive.passive , level = passive.level, xp = passive.xp, parent = self}
         end
       else
         self:transition()
@@ -721,37 +722,58 @@ function Arena:set_passives(from_reroll)
   local w = 4*card_w + 3*20
   self.choosing_passives = true
   self.cards = {}
-  local passive_1 = random:table_remove(run_passive_pool)
-  local passive_2 = random:table_remove(run_passive_pool)
-  local passive_3 = random:table_remove(run_passive_pool)
-  local passive_4 = random:table_remove(run_passive_pool)
-  if passive_1 then
-    table.insert(self.cards, PassiveCard{group = main.current.ui, x = gw/2 - w/2 + 0*(card_w + 20) + card_w/2 + 45, y = gh/2 - 20, w = card_w, h = card_h, card_i = 1, arena = self, passive = passive_1, force_update = true})
+  local existing_items = {}
+  
+  for _,v in ipairs(self.passives) do
+    table.insert(existing_items, v.passive)
   end
-  if passive_2 then
-    table.insert(self.cards, PassiveCard{group = main.current.ui, x = gw/2 - w/2 + 1*(card_w + 20) + card_w/2 + 45, y = gh/2, w = card_w, h = card_h, card_i = 2, arena = self, passive = passive_2, force_update = true})
-  end
-  if passive_3 then
-    table.insert(self.cards, PassiveCard{group = main.current.ui, x = gw/2 - w/2 + 2*(card_w + 20) + card_w/2 + 45, y = gh/2 - 20, w = card_w, h = card_h, card_i = 3, arena = self, passive = passive_3, force_update = true})
-  end
-  if passive_4 then
-    table.insert(self.cards, PassiveCard{group = main.current.ui, x = gw/2 - w/2 + 3*(card_w + 20) + card_w/2 + 45, y = gh/2, w = card_w, h = card_h, card_i = 4, arena = self, passive = passive_4, force_update = true})
-  end
-  self.passive_text = Text2{group = self.ui, x = gw/2 + 45, y = gh/2 - 75, lines = {{text = '[fg, wavy]choose one', font = fat_font, alignment = 'center'}}}
-  if not passive_1 and not passive_2 and not passive_3 and not passive_4 then
-    self:transition()
+
+  -- add checks for ModItem#canBeBought and an event handler
+  local passive_1 = ModLoader.randomItem(existing_items)
+  table.insert(existing_items, passive_1)
+  local passive_2 = ModLoader.randomItem(existing_items)
+  table.insert(existing_items, passive_2)
+  local passive_3 = ModLoader.randomItem(existing_items)
+  table.insert(existing_items, passive_3)
+  local passive_4 = ModLoader.randomItem(existing_items)
+  if table.any({passive_1, passive_2, passive_3, passive_4}, function(v)
+    if v == nil then return false end
+    if ModLoader.pushEvent("passive_rolled", v).cancelled then return true end
+    if ModLoader.isXModded(v) and v.canBeBought and v:canBeBought(self) then return false end
+
+    return true
+  end) then
+    self:set_passives(true)
+  else
+    if passive_1 then
+      table.insert(self.cards, PassiveCard{group = main.current.ui, x = gw/2 - w/2 + 0*(card_w + 20) + card_w/2 + 45, y = gh/2 - 20, w = card_w, h = card_h, card_i = 1, arena = self, passive = passive_1, force_update = true})
+    end
+    if passive_2 then
+      table.insert(self.cards, PassiveCard{group = main.current.ui, x = gw/2 - w/2 + 1*(card_w + 20) + card_w/2 + 45, y = gh/2, w = card_w, h = card_h, card_i = 2, arena = self, passive = passive_2, force_update = true})
+    end
+    if passive_3 then
+      table.insert(self.cards, PassiveCard{group = main.current.ui, x = gw/2 - w/2 + 2*(card_w + 20) + card_w/2 + 45, y = gh/2 - 20, w = card_w, h = card_h, card_i = 3, arena = self, passive = passive_3, force_update = true})
+    end
+    if passive_4 then
+      table.insert(self.cards, PassiveCard{group = main.current.ui, x = gw/2 - w/2 + 3*(card_w + 20) + card_w/2 + 45, y = gh/2, w = card_w, h = card_h, card_i = 4, arena = self, passive = passive_4, force_update = true})
+    end
+    self.passive_text = Text2{group = self.ui, x = gw/2 + 45, y = gh/2 - 75, lines = {{text = '[fg, wavy]choose one', font = fat_font, alignment = 'center'}}}
+    if not passive_1 and not passive_2 and not passive_3 and not passive_4 then
+      self:transition()
+    end
   end
 end
 
 
 function Arena:restore_passives_to_pool(j)
-  for i = 1, 4 do
-    if i ~= j then
-      if self.cards[i] then
-        table.insert(run_passive_pool, self.cards[i].passive)
-      end
-    end
-  end
+  ModLoader.debug("restore passives to pool (arena:757)")
+  -- for i = 1, 4 do
+  --   if i ~= j then
+  --     if self.cards[i] then
+  --       table.insert(run_passive_pool, self.cards[i].passive)
+  --     end
+  --   end
+  -- end
 end
 
 
@@ -833,13 +855,13 @@ function Arena:die()
       self.build_text = Text2{group = self.ui, x = 40, y = 20, force_update = true, lines = {{text = "[wavy_mid, fg]your build", font = pixul_font, alignment = 'center'}}}
       for i, unit in ipairs(self.units) do
         local characterColorText = unit.hero and unit.hero:distinctName() or character_color_strings[unit.character]
-        CharacterPart{group = self.ui, x = 20, y = 40 + (i-1)*19, character = unit.character, level = unit.level, force_update = true, cant_click = true, parent = self}
+        CharacterPart{group = self.ui, x = 20, y = 40 + (i-1)*19, character = unit.character, level = unit.level, hero = unit.hero, force_update = true, cant_click = true, parent = self}
         Text2{group = self.ui, x = 20 + 14 + pixul_font:get_text_width(unit.character)/2, y = 40 + (i-1)*19, force_update = true, lines = {
           {text = '[' .. characterColorText .. ']' .. unit.character, font = pixul_font, alignment = 'left'}
         }}
       end
       for i, passive in ipairs(self.passives) do
-        ItemCard{group = self.ui, x = 120 + (i-1)*30, y = 30, w = 30, h = 45, sx = 0.75, sy = 0.75, force_update = true, passive = passive.passive , level = passive.level, xp = passive.xp, parent = self}
+        ItemCard{group = self.ui, x = 120 + (i-1)*30, y = 30, w = 30, h = 45, sx = 0.75, sy = 0.75, force_update = true, item = passive, passive = passive.passive , level = passive.level, xp = passive.xp, parent = self}
       end
       self.death_info_text = Text2{group = self.ui, x = gw/2, y = gh/2, sx = 0.7, sy = 0.7, lines = {
         {text = '[wavy_mid, fg]level reached: [wavy_mid, yellow]' .. self.level, font = fat_font, alignment = 'center'},

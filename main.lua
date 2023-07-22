@@ -235,9 +235,6 @@ function init()
   divine_blessing = Image('divine_blessing')
   hardening = Image('hardening')
 
-  -- load the modloader after all the assets
-  ModLoader.load()
-
   class_colors = {
     ['warrior'] = yellow[0],
     ['ranger'] = green[0],
@@ -1096,6 +1093,9 @@ function init()
     ['thief'] = 4,
   }
 
+  -- load the modloader after all the assets
+  ModLoader.load()
+
   launches_projectiles = function(character)
     local classes = {'vagrant', 'archer', 'scout', 'outlaw', 'blade', 'wizard', 'cannoneer', 'dual_gunner', 'hunter', 'spellblade', 'engineer', 'corruptor', 'beastmaster', 'jester', 'assassin', 'barrager', 
       'arcanist', 'illusionist', 'artificer', 'miner', 'thief', 'sentry'}
@@ -1135,8 +1135,8 @@ function init()
       local groups = class_set_numbers[class]
       for i = #groups, 1, -1 do
         if number_of_units >= groups[i] then return i end
-        return 0
       end
+      return 0
     end
 
     local u = {
@@ -1744,15 +1744,17 @@ function init()
   main:go_to('media')
   ]]--
 
-  trigger:every(2, function()
-    if debugging_memory then
-      for k, v in pairs(system.type_count()) do
-        print(k, v)
-      end
-      print("-- " .. math.round(tonumber(collectgarbage("count"))/1024, 3) .. "MB --")
-      print()
-    end
-  end)
+  -- trigger:every(2, function()
+  --   if ModLoader.developerMode then
+  --     if ModLoader.debugTypes then
+  --       for k, v in pairs(system.type_count()) do
+  --         print(k, v)
+  --       end
+  --     end
+  --     print("-- " ..  .. "MB --")
+  --     print()
+  --   end
+  -- end)
 
   --[[
   print(table.tostring(love.graphics.getSupported()))

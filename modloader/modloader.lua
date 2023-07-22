@@ -16,32 +16,67 @@ local createGlobals = require("modloader.modglobals")
 
 ModLoader = {}
 
-ModLoader.developerMode = false
+ModLoader.developerMode = true
+ModLoader.extraDebugInfo = true
+ModLoader.debugMemory = false
+ModLoader.debugTypes = false
 
 ModLoader.loadedMods = {}
 ModLoader.enabledMods = {}
 ModLoader.heroTierMap = {}
 ModLoader.eventHandlers = {}
 
-ModLoader.loadedMods["snkrx"] = Mod{
-    name = "snkrx",
-    description = "Base game",
-    author = "adn",
-    version = "1.0",
-    main_file = "",
-    mod_folder = ""
-}
+ModLoader.patches = {}
 
-ModLoader.loadedMods["snkrx"]:addShopCondition(function(all_units)
-    return not table.all(all_units, function(v) return table.any(non_attacking_characters, function(u) return v == u end) end)
-end)
+ModLoader.ModShapes = require 'modloader.modshapes'
+
+local function wrapFunctions(obj, name)
+    for k,v in pairs(obj) do
+        if k ~= "__index" then
+            if type(v) == "function" and v ~= print then
+                local info = debug.getinfo(v, "S")
+                if info.what ~= "C" then
+                    obj[k] = function(...)
+                        local f = ModLoader.patches[name .. "." .. k]
+                        if not f then return v(...) end
+                        local s, e = pcall(f, v, ...)
+                        if not s then
+                            ModLoader.error(e)
+                            return v(...)
+                        end
+                        return e
+                    end
+                end
+            elseif type(v) == "table" then
+                if not (v == Object or v == love or v == table or v == string or v == math or v == _G or v == package or v == debug or v == os) then
+                    wrapFunctions(v, name .. "." .. k)
+                end
+            end
+        end
+    end
+end
 
 function ModLoader.load()
     -- initialize ModLoader state
 
+    wrapFunctions(_G, "_G")
+
     -- replace builtin heroes and classes
     do
+        -- ModLoader.loadedMods["snkrx"] = Mod{
+        --     name = "snkrx",
+        --     description = "Base game",
+        --     author = "adn",
+        --     version = "1.0",
+        --     main_file = "",
+        --     mod_folder = ""
+        -- }
         
+        -- ModLoader.loadedMods["snkrx"]:addShopCondition(function(all_units)
+        --     return not table.all(all_units, function(v) return table.any(non_attacking_characters, function(u) return v == u end) end)
+        -- end)
+
+        ModLoader.loadedMods["snkrx"] = require("modloader.vanilla")
     end
 
     -- load mods from mod folder
@@ -318,8 +353,8 @@ function ModLoader.randomHero(tier_weights, except_heroes)
     -- unit_1 = random:table(tier_to_characters[random:weighted_pick(unpack(tier_weights))])
     local tier = random:weighted_pick(unpack(tier_weights))
 
-    local combined = table.copy(tier_to_characters[tier])
-    -- local combined = {}
+    -- local combined = table.copy(tier_to_characters[tier])
+    local combined = {}
 
     for _, hero in pairs(ModLoader.aggregateHeroes()) do
         if hero.tier == tier then
@@ -336,8 +371,8 @@ end
 
 function ModLoader.randomItem(current_items)
     -- after you convert all the vanilla stuff into a "mod", you won't need this part
-    local combined = table.shallow_copy(default_passive_pool)
-    -- local combined = {}
+    -- local combined = table.shallow_copy(default_passive_pool)
+    local combined = {}
     combined = table.reject(combined, function(v)
         return not table.contains(current_items, v)
     end)
@@ -355,6 +390,16 @@ end
 
 function ModLoader.isCharacterModded(character)
     return type(character) == "table" and character.name ~= nil
+end
+
+function ModLoader.isXModded(x)
+    return type(x) == "table" and x.distinctName ~= nil
+end
+
+function ModLoader.addArenaWall(x, y, w, h)
+    local arena = ModLoader.getArena()
+    if not arena then return nil end
+    return ModLoader.ModShapes.NewWall{group = arena.main, x = x, y = y, w = w, h = h}
 end
 
 function ModLoader.addEventHandler(eventName, handler)
@@ -413,6 +458,26 @@ function ModLoader.stringifyRun(run)
         end
     end
 
+    if run.passives then
+        local newPassives = run.passives
+        run.passives = {}
+
+        for _, passive in ipairs(newPassives) do
+            if ModLoader.isXModded(passive.passive) then
+                local u = {
+                    name = passive.passive.name,
+                    mod = passive.passive.mod.name
+                }
+                passive = {
+                    passive = u,
+                    level = passive.level,
+                    xp = passive.xp
+                }
+            end
+            table.insert(run.passives, passive)
+        end
+    end
+
     local newCards
     if run.locked_state then
         newCards = table.shallow_copy(run.locked_state.cards)
@@ -445,28 +510,26 @@ function ModLoader.isModEnabled(mod)
 end
 
 function ModLoader.enableMod(mod)
+    if mod == nil then return end
     if type(mod) == "table" then
         ModLoader.log("enabling " .. mod.name)
         ModLoader.enabledMods[mod.name] = mod
         ModLoader.pushEvent("mod_enabled", mod)
     else
-        ModLoader.log("enabling " .. mod)
-        ModLoader.enabledMods[mod] = ModLoader.loadedMods[mod]
-        ModLoader.pushEvent("mod_enabled", ModLoader.enabledMods[mod])
+        ModLoader.enableMod(ModLoader.loadedMods[mod])
     end
 
     ModLoader.writeEnabledMods()
 end
 
 function ModLoader.disableMod(mod)
+    if mod == nil then return end
     if type(mod) == "table" then
         ModLoader.enabledMods[mod.name] = nil
         ModLoader.log("disabling " .. mod.name)
         ModLoader.pushEvent("mod_disabled", mod)
     else
-        ModLoader.log("disabling " .. mod)
-        ModLoader.pushEvent("mod_disabled", ModLoader.enabledMods[mod])
-        ModLoader.enabledMods[mod] = nil
+        ModLoader.disableMod(ModLoader.enabledMods[mod])
     end
 
     ModLoader.writeEnabledMods()
@@ -487,6 +550,28 @@ function ModLoader.parse_run(run)
             end
 
             if add then table.insert(run.units, unit) end
+        end
+    end
+
+    if run.passives then
+        local newPassives = table.shallow_copy(run.passives)
+        run.passives = {}
+
+        for _, passive in ipairs(newPassives) do
+            local add = true
+            if type(passive.passive) == "table" then
+                local mod = ModLoader.enabledMods[passive.passive.mod]
+                if mod then
+                    local n = {
+                        xp = passive.xp,
+                        level = passive.level,
+                        passive = mod._items[passive.passive.name]
+                    }
+                    passive = n
+                else add = false end
+            end
+
+            if add then table.insert(run.passives, passive) end
         end
     end
 
@@ -515,6 +600,10 @@ end
 
 function ModLoader.modExists(modName)
     return ModLoader.isDirectory("mods/" .. modName)
+end
+
+function ModLoader.getMemoryUsage()
+    return math.round(tonumber(collectgarbage("count"))/1024, 3)
 end
 
 function ModLoader.removeDirectory(directory)
@@ -594,18 +683,44 @@ function ModLoader.readEnabledMods()
     return v
 end
 
-function ModLoader.log(msg)
-    io.stdout:write("[SNKMD] " .. msg .. "\n")
+function ModLoader.getArena()
+    return main:get("arena")
+end
+
+function ModLoader.log(...)
+    local b = {...}
+    local t = ""
+    for _,v in ipairs(b) do
+        t = t .. v .. "\t"
+    end
+    io.stdout:write("[SNKMD] " .. t .. "\n")
     io.stdout:flush()
 end
 
-function ModLoader.debug(msg)
+function ModLoader.debug(...)
     if not ModLoader.developerMode then return end
-    io.stdout:write("[SNKMD][D] " .. msg .. "\n")
+    local b = {...}
+    local t = "[SNKMD][D]"
+    if ModLoader.extraDebugInfo then
+        local gi = debug.getinfo(2)
+        t = t .. "(" .. gi.short_src .. ":" .. gi.currentline .. ")"
+    end
+    t = t .. " "
+    for _,v in ipairs(b) do
+        t = t .. tostring(v) .. "\t"
+    end
+    io.stdout:write(t .. "\n")
     io.stdout:flush()
 end
 
-function ModLoader.error(msg)
-    io.stderr:write("[SNKMD] " .. msg .. "\n")
+function ModLoader.error(...)
+    local b = {...}
+    local t = ""
+    for _,v in ipairs(b) do
+        t = t .. v .. "\t"
+    end
+    io.stderr:write("[SNKMD] " .. t .. "\n")
     io.stderr:flush()
 end
+
+_G.print = ModLoader.debug

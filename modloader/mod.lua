@@ -17,6 +17,8 @@ return function(data)
 
     mod._shopConditions = {}
 
+    mod._patches = {}
+
     function mod:getConfigurationFolder()
         return self._mod_folder .. "/config"
     end
@@ -143,6 +145,7 @@ return function(data)
         definition.description = definition.description or "ModItemDescription"
         definition.levels = definition.levels or {2,3}
         definition.image = definition.image or _G["ultimatum"]
+        definition.xp_cost = definition.xp_cost or 5
 
         definition.mod = self
 
@@ -158,8 +161,45 @@ return function(data)
         return main.current.units
     end
 
+    function mod:getArena()
+        return ModLoader.getArena()
+    end
+
     function mod:disableMod()
         ModLoader.disableMod(self)
+    end
+
+    function mod:patchFunction(patchPath, patch)
+        self._patches[patchPath] = patch
+        ModLoader.patches[patchPath] = patch
+
+        return function()
+            return mod:unpatchFunction(patchPath)
+        end
+    end
+
+    function mod:unpatchFunction(patchPath)
+        if not self:isPatched(patchPath, true) then return false end
+        self._patches[patchPath] = nil
+        ModLoader.patches[patchPath] = nil
+
+        return true
+    end
+
+    function mod:isPatched(patchPath, strict)
+        if not strict then strict = false end
+
+        local patch = ModLoader.patches[patchPath]
+        if not patch then return false end
+        if not strict then return true end
+
+        return patch == self._patches[patchPath]
+    end
+
+    function mod:unpatchAll()
+        for k,_ in pairs(self._patches) do
+            mod:unpatchFunction(k)
+        end
     end
 
     return mod
