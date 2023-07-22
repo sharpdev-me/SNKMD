@@ -7,9 +7,9 @@ Combine different heroes to unlock class bonuses and create unique builds, and s
 
 I recently bought SNKRX and after playing a few times, I got a little bored of the repitition. That's why I decided to create a modloader. This repository is a patched version of the [SNKRX source](https://github.com/a327ex/SNKRX). I hope for it to be similar to Forge for Minecraft. An API will be provided that will make creating things like units, classes, and enemies much easier (the organization of SNKRX's code is a *little* messy).
 
-## Wiki
+## Wiki (work in progress)
 
-Wiki will be coming soon, after the API is finished.
+You can find the wiki [here](https://wiki.snkmd.net)
 
 ## Creating Mods
 
