@@ -122,7 +122,7 @@ function ModLoader.loadMod(modName)
     local modFolder = "mods/" .. modName
 
     local modDefinition = io.open(ModLoader.getModsFolder() .. modName .. "/mod_data.txt", "r")
-    
+
     if not modDefinition then
         ModLoader.error("error loading " .. modName .. ": missing mod_data.txt")
         return false
@@ -179,8 +179,8 @@ function ModLoader.loadMod(modName)
     else
         ModLoader.log("loaded " .. name)
     end
-
     ModLoader.loadedMods[name] = mod
+    if mod._onLoad then mod:_onLoad() end
 end
 
 function ModLoader.unpackModZip(file)
@@ -515,6 +515,7 @@ function ModLoader.enableMod(mod)
         ModLoader.log("enabling " .. mod.name)
         ModLoader.enabledMods[mod.name] = mod
         ModLoader.pushEvent("mod_enabled", mod)
+        if mod._onEnable then mod:_onEnable() end
     else
         ModLoader.enableMod(ModLoader.loadedMods[mod])
     end
@@ -525,6 +526,7 @@ end
 function ModLoader.disableMod(mod)
     if mod == nil then return end
     if type(mod) == "table" then
+        if mod._onDisable then mod:_onDisable() end
         ModLoader.enabledMods[mod.name] = nil
         ModLoader.log("disabling " .. mod.name)
         ModLoader.pushEvent("mod_disabled", mod)

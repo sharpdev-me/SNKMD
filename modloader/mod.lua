@@ -19,6 +19,22 @@ return function(data)
 
     mod._patches = {}
 
+    mod._onLoad = function(self) end
+    mod._onEnable = function(self) end
+    mod._onDisable = function(self) end
+
+    function mod:onLoad(func)
+        self._onLoad = func
+    end
+
+    function mod:onEnable(func)
+        self._onEnable = func
+    end
+
+    function mod:onDisable(func)
+        self._onDisable = func
+    end
+
     function mod:getConfigurationFolder()
         return self._mod_folder .. "/config"
     end
