@@ -371,8 +371,8 @@ end
 
 function ModLoader.randomItem(current_items)
     -- after you convert all the vanilla stuff into a "mod", you won't need this part
-    -- local combined = table.shallow_copy(default_passive_pool)
-    local combined = {}
+    local combined = table.shallow_copy(default_passive_pool)
+    -- local combined = {}
     combined = table.reject(combined, function(v)
         return not table.contains(current_items, v)
     end)
