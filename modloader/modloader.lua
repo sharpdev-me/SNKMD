@@ -16,10 +16,10 @@ local createGlobals = require("modloader.modglobals")
 
 ModLoader = {}
 
-ModLoader.developerMode = true
-ModLoader.extraDebugInfo = true
-ModLoader.debugMemory = false
-ModLoader.debugTypes = false
+ModLoader.developerMode = os.getenv("DEVELOPER_MODE") ~= nil
+ModLoader.extraDebugInfo = os.getenv("EXTRA_DEBUG_INFO") ~= nil
+ModLoader.debugMemory = os.getenv("DEBUG_MEMORY") ~= nil
+ModLoader.debugTypes = os.getenv("DEBUG_TYPES") ~= nil
 
 ModLoader.loadedMods = {}
 ModLoader.enabledMods = {}
@@ -60,6 +60,9 @@ function ModLoader.load()
     -- initialize ModLoader state
 
     wrapFunctions(_G, "_G")
+
+    if ModLoader.developerMode then ModLoader.debug("developer mode enabled") end
+    if ModLoader.extraDebugInfo then ModLoader.debug("showing extra debug info") end
 
     -- replace builtin heroes and classes
     do

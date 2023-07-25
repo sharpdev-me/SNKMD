@@ -533,15 +533,15 @@ u["juggernaut"] = function(self)
   end, nil, nil, 'attack')
 end
 
-u["lich"] = function(self)
-  self.attack_sensor = Circle(self.x, self.y, 128)
-  self.t:cooldown(4, function() local enemies = self:get_objects_in_shape(self.attack_sensor, main.current.enemies); return enemies and #enemies > 0 end, function()
-    local closest_enemy = self:get_closest_object_in_shape(self.attack_sensor, main.current.enemies)
-    if closest_enemy then
-      self:shoot(self:angle_to_object(closest_enemy), {chain = (self.level == 3 and 14 or 7), v = 140})
-    end
-  end, nil, nil, 'shoot')
-end
+-- u["lich"] = function(self)
+--   self.attack_sensor = Circle(self.x, self.y, 128)
+--   self.t:cooldown(4, function() local enemies = self:get_objects_in_shape(self.attack_sensor, main.current.enemies); return enemies and #enemies > 0 end, function()
+--     local closest_enemy = self:get_closest_object_in_shape(self.attack_sensor, main.current.enemies)
+--     if closest_enemy then
+--       self:shoot(self:angle_to_object(closest_enemy), {chain = (self.level == 3 and 14 or 7), v = 140})
+--     end
+--   end, nil, nil, 'shoot')
+-- end
 
 u["cryomancer"] = function(self)
   self.t:after(0.01, function()
