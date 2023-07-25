@@ -1,0 +1,25 @@
+name: Build Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  tagged-release:
+    name: "Tagged Release"
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: "Build Windows"
+        run: |
+          bash build/build_windows.sh
+      
+      - uses: "marvinpinto/action-automatic-release@latest"
+        with:
+          repo_token: "${{ secrets.GITHUB_TOKEN }}"
+          prerelease: false
+          files: |
+            build/windows/SNKRX-windows64.zip

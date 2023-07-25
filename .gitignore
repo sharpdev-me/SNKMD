@@ -1,4 +1,5 @@
 steam/
-builds/
+build/windows
+build/linux
 .vscode
 *.so
