@@ -1,5 +1,7 @@
 #!/bin/bash
+echo $PWD
 cd build
+echo $PWD
 
 7z a -r game.zip ../ -xr!engine/love -xr!build -xr!.git -xr!*.moon -xr!conf.lua -xr!.gitignore -xr!.vscode
 mv game.zip game.love
