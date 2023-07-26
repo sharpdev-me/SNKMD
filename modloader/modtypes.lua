@@ -1,74 +1,70 @@
 local ModTypes = {}
 
-ModTypes.Hero = setmetatable({
+function ModTypes.Hero(definition)
+    local hero = table.shallow_copy(definition)
 
-}, {
-    __call = function(_, definition)
-        local hero = table.shallow_copy(definition)
-
-        function hero:getDescription(l)
-            if type(self.description) == "function" then return self:description(l) else return self.description end
-        end
-
-        function hero:getColor()
-            if self.color then return self.color end
-
-            local colorClass = self.classes[1]
-            if colorClass.mod ~= nil then
-                return colorClass:getColor()
-            end
-            return class_colors[colorClass]
-        end
-
-        function hero:distinctName()
-            return "hero_" .. self.mod.name .. self.name
-        end
-
-        function hero:getRenderColor()
-            local hColor = self:getColor()
-
-            if hColor[0] ~= nil then return hColor[0] else return hColor end
-        end
-
-        function hero:getDimColor()
-            if not self.colorRamp then self.colorRamp = ColorRamp(self:getRenderColor(), 0.025) end
-            return self.colorRamp[-5]
-        end
-
-        function hero:capitalize()
-            return self.name:gsub("_", " "):capitalize()
-        end
-
-        function hero:createClassString()
-            local result = {}
-
-            for _, class in ipairs(self.classes) do
-                if class.mod ~= nil then
-                    table.insert(result, '[' .. class:distinctName() .. ']' .. class:capitalize())
-                else table.insert(result, '[' .. class_color_strings[class] .. ']' .. class:capitalize()) end
-            end
-
-            return table.concat(result, ", ")
-        end
-
-        function hero:setLevelThree(level_three)
-            level_three.hero = self
-            self.level_three = level_three
-            global_text_tags[level_three:distinctName()] = TextTag{draw = function(c, i, text) graphics.set_color(level_three:getRenderColor()) end}
-        end
-
-        function hero:getLevelThree()
-            if self.level_three then return self.level_three end
-            return ModTypes.LevelThree.default(self)
-        end
-
-        function hero:setRepeat(func)
-            self.repeat_func = func
-        end
-
-        return hero
+    function hero:getDescription(l)
+        if type(self.description) == "function" then return self:description(l) else return self.description end
     end
-})
+
+    function hero:getColor()
+        if self.color then return self.color end
+
+        local colorClass = self.classes[1]
+        if colorClass.mod ~= nil then
+            return colorClass:getColor()
+        end
+        return class_colors[colorClass]
+    end
+
+    function hero:distinctName()
+        return "hero_" .. self.mod.name .. self.name
+    end
+
+    function hero:getRenderColor()
+        local hColor = self:getColor()
+
+        if hColor[0] ~= nil then return hColor[0] else return hColor end
+    end
+
+    function hero:getDimColor()
+        if not self.colorRamp then self.colorRamp = ColorRamp(self:getRenderColor(), 0.025) end
+        return self.colorRamp[-5]
+    end
+
+    function hero:capitalize()
+        return self.name:gsub("_", " "):capitalize()
+    end
+
+    function hero:createClassString()
+        local result = {}
+
+        for _, class in ipairs(self.classes) do
+            if class.mod ~= nil then
+                table.insert(result, '[' .. class:distinctName() .. ']' .. class:capitalize())
+            else table.insert(result, '[' .. class_color_strings[class] .. ']' .. class:capitalize()) end
+        end
+
+        return table.concat(result, ", ")
+    end
+
+    function hero:setLevelThree(level_three)
+        level_three.hero = self
+        self.level_three = level_three
+        global_text_tags[level_three:distinctName()] = TextTag{draw = function(c, i, text) graphics.set_color(level_three:getRenderColor()) end}
+    end
+
+    function hero:getLevelThree()
+        if self.level_three then return self.level_three end
+        return ModTypes.LevelThree.default(self)
+    end
+
+    function hero:setRepeat(func)
+        self.repeat_func = func
+    end
+
+    return hero
+end
 
 function ModTypes.Class(definition)
     local class = table.shallow_copy(definition)

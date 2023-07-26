@@ -6,7 +6,7 @@ mv game.zip game.love
 
 mkdir -p windows/build64
 
-cat ../engine/love.exe game.love > windows/build64/SNKRX.exe
+cat ../engine/love/love.exe game.love > windows/build64/SNKRX.exe
 
 cp ../engine/love/*.dll windows/build64/
 cp ../engine/love/*.txt windows/build64/

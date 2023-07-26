@@ -56,6 +56,10 @@ local function wrapFunctions(obj, name)
     end
 end
 
+local function stringStartsWith(str, start)
+    return str:sub(1, #start) == start
+end
+
 function ModLoader.load()
     -- initialize ModLoader state
 
@@ -63,6 +67,37 @@ function ModLoader.load()
 
     if ModLoader.developerMode then ModLoader.debug("developer mode enabled") end
     if ModLoader.extraDebugInfo then ModLoader.debug("showing extra debug info") end
+
+    -- add a package loader for lua require
+    do
+        local function simpleLoader(value)
+            return function() return value end
+        end
+        
+        table.insert(package.loaders, 2, function(modname)
+            if modname == "modloader" or modname == "Modloader" then return simpleLoader(ModLoader) end
+            if not ModLoader.loadedMods then return end
+            local mod = ModLoader.loadedMods[modname]
+            if mod ~= nil then return simpleLoader(mod) end
+
+            for _,v in ipairs(ModLoader.loadedMods) do
+                if stringStartsWith(modname .. ".", v.name) then
+                    local parts = string.split(modname, ".")
+                    _, parts = table.shift(parts, 1)
+                    local path = v._mod_folder .. "/" .. table.concat(parts, "/")
+                    local fsinfo = love.filesystem.getInfo(path .. ".lua", "file")
+                    if fsinfo ~= nil then
+                        return love.filesystem.load(path .. ".lua")
+                    else
+                        fsinfo = love.filesystem.getInfo(path .. "/init.lua", "file")
+                        if fsinfo ~= nil then
+                            return love.filesystem.load(path .. "/init.lua")
+                        end
+                    end
+                end
+            end
+        end)
+    end
 
     -- replace builtin heroes and classes
     do
