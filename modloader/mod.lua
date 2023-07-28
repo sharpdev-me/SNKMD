@@ -2,7 +2,11 @@ local ModTypes = require 'modloader.modtypes'
 local ModShapes = require 'modloader.modshapes'
 
 return function(data)
-    local mod = {}
+    local mod = setmetatable({}, {
+        __call = function (t)
+            return t
+        end
+    })
     mod.name = data.name
     mod.author = data.author
     mod.description = data.description
@@ -47,6 +51,8 @@ return function(data)
         return love.filesystem.getSaveDirectory() .. "/" .. self._mod_folder
     end
 
+    --- Returns the mod's configuration
+    -- @return unknown
     function mod:getConfiguration()
         if self.configuration then
             return self.configuration

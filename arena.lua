@@ -433,12 +433,6 @@ function Arena:quit()
       self.won = true
       locked_state = nil
 
-      if current_new_game_plus == new_game_plus then
-        new_game_plus = new_game_plus + 1
-        state.new_game_plus = new_game_plus
-      end
-      current_new_game_plus = current_new_game_plus + 1
-      state.current_new_game_plus = current_new_game_plus
       max_units = math.clamp(7 + current_new_game_plus + self.loop, 7, 12)
 
       system.save_run()
@@ -457,9 +451,9 @@ function Arena:quit()
 
         self.build_text = Text2{group = self.ui, x = 40, y = 20, force_update = true, lines = {{text = "[wavy_mid, fg]your build", font = pixul_font, alignment = 'center'}}}
         for i, unit in ipairs(self.units) do
-          CharacterPart{group = self.ui, x = 20, y = 40 + (i-1)*19, character = unit.character, level = unit.level, force_update = true, cant_click = true, parent = self}
+          CharacterPart{group = self.ui, x = 20, y = 40 + (i-1)*19, character = unit.character, level = unit.level, hero = unit.hero, force_update = true, cant_click = true, parent = self}
           Text2{group = self.ui, x = 20 + 14 + pixul_font:get_text_width(unit.character)/2, y = 40 + (i-1)*19, force_update = true, lines = {
-            {text = '[' .. character_color_strings[unit.character] .. ']' .. unit.character, font = pixul_font, alignment = 'left'}
+            {text = '[' .. unit.hero:distinctName() .. ']' .. unit.character, font = pixul_font, alignment = 'left'}
           }}
         end
         for i, passive in ipairs(self.passives) do
@@ -467,14 +461,6 @@ function Arena:quit()
         end
 
         if current_new_game_plus == 6 then
-          if current_new_game_plus == new_game_plus then
-            new_game_plus = 5
-            state.new_game_plus = new_game_plus
-          end
-          current_new_game_plus = 5
-          state.current_new_game_plus = current_new_game_plus
-          max_units = 12
-
           self.win_text2 = Text2{group = self.ui, x = gw/2 + 40, y = gh/2 + 20, force_update = true, lines = {
             {text = "[fg]now you've really beaten the game!", font = pixul_font, alignment = 'center', height_multiplier = 1.24},
             {text = "[fg]thanks a lot for playing it and completing it entirely!", font = pixul_font, alignment = 'center', height_multiplier = 1.24},
@@ -741,7 +727,7 @@ function Arena:set_passives(from_reroll)
     if ModLoader.pushEvent("passive_rolled", v).cancelled then return true end
     if ModLoader.isXModded(v) and v.canBeBought and v:canBeBought(self) then return false end
 
-    return true
+    return false
   end) then
     self:set_passives(true)
   else
@@ -902,8 +888,7 @@ end
 function Arena:endless()
   if self.clicked_loop then return end
   self.clicked_loop = true
-  if current_new_game_plus >= 5 then current_new_game_plus = 5
-  else current_new_game_plus = current_new_game_plus - 1 end
+  current_new_game_plus = current_new_game_plus - 1
   if current_new_game_plus < 0 then current_new_game_plus = 0 end
   self.loop = self.loop + 1
   self:transition()
@@ -980,6 +965,8 @@ function Arena:create_credits()
     open_url(b, 'https://twitter.com/thecryru') end}
   Button{group = self.credits, x = 258, y = 210, button_text = 'Yongmin Park', fg_color = 'redm5', bg_color = 'red', credits_button = true, action = function(b) 
     open_url(b, 'https://twitter.com/yongminparks') end}
+  Text2{group = self.credits, x = 60, y = 240, lines = {{text = '[bg10]modloader: ', font = pixul_font}}}
+  Button{group = self.credits, x = 117, y = 240, button_text = 'sharpdev', fg_color = 'bg10', bg_color = 'bg', credits_button = true, action = function(b) open_url(b, 'https://github.com/sharpdev-me') end}
 end
 
 
