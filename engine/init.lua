@@ -62,6 +62,8 @@ function engine_run(config)
 
     gw, gh = config.game_width or 480, config.game_height or 270
     sx, sy = window_width/(config.game_width or 480), window_height/(config.game_height or 270)
+    if sx > 4 then sx = 4 end
+    if sy > 4 then sy = 4 end
     ww, wh = window_width, window_height
 
     if state.sx and state.sy then

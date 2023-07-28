@@ -2015,6 +2015,8 @@ function open_options(self)
       local _, _, flags = love.window.getMode()
       local window_width, window_height = love.window.getDesktopDimensions(flags.display)
       sx, sy = window_width/480, window_height/270
+      if sx > 4 then sx = 4 end
+      if sy > 4 then sy = 4 end
       state.sx, state.sy = sx, sy
       ww, wh = window_width, window_height
       love.window.setMode(window_width, window_height)
@@ -2025,6 +2027,8 @@ function open_options(self)
       local window_width, window_height = love.window.getDesktopDimensions(flags.display)
       sx, sy = window_width/480, window_height/270
       ww, wh = window_width, window_height
+      if sx > 4 then sx = 4 end
+      if sy > 4 then sy = 4 end
       state.sx, state.sy = sx, sy
       state.fullscreen = false
       ww, wh = window_width, window_height
