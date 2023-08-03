@@ -1849,8 +1849,9 @@ end
 
 function open_options(self)
   input:set_mouse_visible(true)
-  trigger:tween(0.25, _G, {slow_amount = 0}, math.linear, function()
-    slow_amount = 0
+  trigger:cancel("slow")
+  
+  slow_amount = 0
     self.paused = true
 
     if self:is(Arena) then
@@ -2109,7 +2110,6 @@ function open_options(self)
       steam.shutdown()
       love.event.quit()
     end}
-  end, 'pause')
 end
 
 
