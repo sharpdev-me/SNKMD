@@ -8,6 +8,7 @@
 > Features<br>
 > -
 > New stats system<br>
+> Rework patching system<br>
 
 > Known Issues<br>
 > -
