@@ -3,3 +3,4 @@ build/windows
 build/linux
 .vscode
 *.so
+doc
