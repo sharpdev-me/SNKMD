@@ -1,3 +1,7 @@
+--- Utility functions exposed by the Modloader.
+-- Functions in this file are not tied to any one mod
+-- @module ModLoader
+
 require 'modloader.modmenu'
 
 -- replace this when you turn the base game into a "mod"
@@ -16,13 +20,24 @@ local createGlobals = require("modloader.modglobals")
 
 ModLoader = {}
 
+--- Set the environment variable `DEVELOPER_MODE` to enable "developer mode"
 ModLoader.developerMode = os.getenv("DEVELOPER_MODE") ~= nil
+--- Set the environment variable `EXTRA_DEBUG_INFO` to enable extra info in debug logs
 ModLoader.extraDebugInfo = os.getenv("EXTRA_DEBUG_INFO") ~= nil
+--- Set the environment variable `DEBUG_MEMORY` to enable memory debugging
 ModLoader.debugMemory = os.getenv("DEBUG_MEMORY") ~= nil
+--- Set the environment variable `DEBUG_TYPES` to enable debugging types
 ModLoader.debugTypes = os.getenv("DEBUG_TYPES") ~= nil
 
+---
+-- A list of loaded mods.
+-- Do not modify this table directly.
 ModLoader.loadedMods = {}
+---
+-- A list of enabled mods.
+-- Do not modify this table directly.
 ModLoader.enabledMods = {}
+
 ModLoader.heroTierMap = {}
 ModLoader.eventHandlers = {}
 
@@ -151,6 +166,8 @@ function ModLoader.load()
     ModLoader.pushEvent("modloader_done")
 end
 
+--- Gets the mods folder on the filesystem
+-- @treturn string The mods folder *relative to the LOVE data folder*
 function ModLoader.getModsFolder()
     return system.get_save_directory() .. "/mods/"
 end
@@ -294,6 +311,9 @@ function ModLoader.unpackModZip(file)
     return name
 end
 
+--- Removes a hero added by the specified mod
+-- @modresolvable mod Mod can either be a string or a Mod object
+-- @tparam string|Hero hero The hero to be removed
 function ModLoader.removeHero(mod, hero)
     if mod == nil then
         -- remove hero from base game here
@@ -309,12 +329,17 @@ function ModLoader.removeHero(mod, hero)
     end
 end
 
+--- Removes and replaces a hero added by the specified mod
+-- @modresolvable mod The mod to remove the hero from
+-- @modresolvable newmod The mod to add the new hero to
+-- @tparam Hero.HeroDefinition hero The definition of the hero to create
+-- @see Mod:createHero
 function ModLoader.replaceHero(mod, newmod, hero)
     ModLoader.removeHero(mod, hero)
     if type(newmod) == "string" and ModLoader.enabledMods[newmod] then
         newmod = ModLoader.enabledMods[newmod]
     end
-    newmod:createHero(hero)
+    return newmod:createHero(hero)
 end
 
 function ModLoader.getFileName(file)
@@ -325,6 +350,8 @@ function ModLoader.getFileExtension(file)
     return file:match("^.+(%..+)$")
 end
 
+--- Returns a list of all units in the game
+-- @return A list of all units in the game
 function ModLoader.aggregateHeroes()
     local aggregate = {}
     for _, mod in pairs(ModLoader.enabledMods) do
@@ -335,6 +362,8 @@ function ModLoader.aggregateHeroes()
     return aggregate
 end
 
+--- Gets a list of all classes in the game
+-- @return A list of all classes in the game
 function ModLoader.aggregateClasses()
     local aggregate = {}
     for _, mod in pairs(ModLoader.enabledMods) do
@@ -345,6 +374,8 @@ function ModLoader.aggregateClasses()
     return aggregate
 end
 
+--- Gets a list of all items in the game
+-- @return A list of all items in the game
 function ModLoader.aggregateItems()
     local aggregate = {}
     for _, mod in pairs(ModLoader.enabledMods) do
@@ -356,6 +387,8 @@ function ModLoader.aggregateItems()
     return aggregate
 end
 
+--- Gets a list of all the shop conditions. Used for modifying the results of the reroll button
+-- @return A list of all shop conditions
 function ModLoader.aggregateShopConditions()
     local aggregate = {}
     for _, mod in pairs(ModLoader.enabledMods) do
@@ -378,6 +411,10 @@ function ModLoader.aggregateX(key)
     return aggregate
 end
 
+--- Verifies that every condition is met
+-- @tparam table all_units A list of units that would be generated if this function returns true
+-- @tparam BuyScreen buyScreen The instance of the BuyScreen
+-- @treturn bool True if the list of units is okay, false if it should be rerolled again
 function ModLoader.verifyShopConditions(all_units, buyScreen)
     for _,v in ipairs(ModLoader.aggregateShopConditions()) do
         if not v(all_units, buyScreen) then return false end
@@ -407,7 +444,11 @@ function ModLoader.randomHero(tier_weights, except_heroes)
     return random:table(combined)
 end
 
+--- Returns a random item
+-- @tparam[opt] table current_items A list of items that the player already has. This prevents the player from finding duplicates in the Arena
+-- @treturn Item|string Will return a string if a vanilla item is picked. In the future, this will be changed.
 function ModLoader.randomItem(current_items)
+    current_items = current_items or {}
     -- after you convert all the vanilla stuff into a "mod", you won't need this part
     local combined = table.shallow_copy(default_passive_pool)
     -- local combined = {}
@@ -440,6 +481,11 @@ function ModLoader.addArenaWall(x, y, w, h)
     return ModLoader.ModShapes.NewWall{group = arena.main, x = x, y = y, w = w, h = h}
 end
 
+--- Calls a function whenever an event is fired of the specified type.<br>
+-- NOTE: this is subject to change as the ModLoader develops. Expect more functional events in the future
+-- @string eventName The name of the event you want to listen to
+-- @func handler The function to be called with the event data
+-- @treturn function A reference to the event handler, can be used to cancel it
 function ModLoader.addEventHandler(eventName, handler)
     if not ModLoader.eventHandlers[eventName] then ModLoader.eventHandlers[eventName] = {} end
     local eventHandler = {
@@ -457,6 +503,10 @@ function ModLoader.addEventHandler(eventName, handler)
     return eventHandler
 end
 
+--- Pushes an event to all registered event handlers<br>
+-- NOTE: this is subject to change as the ModLoader develops. Expect more functional events in the future
+-- @string eventName The name of the event to fire
+-- @param ... The rest of the event data, passed directly to the event handler
 function ModLoader.pushEvent(eventName, ...)
     local event = {cancelled = false}
     local i = 0
@@ -539,6 +589,9 @@ function ModLoader.stringifyRun(run)
     return r
 end
 
+--- Checks if a mod is enabled
+-- @modresolvable mod
+-- @treturn bool Whether or not the mod is enabled
 function ModLoader.isModEnabled(mod)
     if type(mod) == "table" then
         return table.rcontains(ModLoader.enabledMods, mod)
@@ -547,9 +600,13 @@ function ModLoader.isModEnabled(mod)
     end
 end
 
+--- Enables a mod. This should be done only in rare cases where you must ensure the order of enabled mods.<br>
+-- Attempting to enable an already enabled mod will not do anything
+-- @modresolvable mod
 function ModLoader.enableMod(mod)
     if mod == nil then return end
     if type(mod) == "table" then
+        if ModLoader.enabledMods[mod.name] ~= nil then return end
         ModLoader.log("enabling " .. mod.name)
         ModLoader.enabledMods[mod.name] = mod
         ModLoader.pushEvent("mod_enabled", mod)
@@ -561,6 +618,9 @@ function ModLoader.enableMod(mod)
     ModLoader.writeEnabledMods()
 end
 
+--- Disables a mod.<br>
+-- If you would disable a mod because of a conflict, instead get in touch with the ModLoader developers to see if that conflict will be resolved in a future update.
+-- @modresolvable mod
 function ModLoader.disableMod(mod)
     if mod == nil then return end
     if type(mod) == "table" then
@@ -638,6 +698,10 @@ function ModLoader.isDirectory(dir)
     return love.filesystem.getInfo(dir, "directory") ~= nil
 end
 
+--- Checks if a mod exists. This can be useful if your mod relies on another.<br>
+-- NOTE: this checks if the mod is found on the filesystem. To check if a mod is *loaded*, look for it in `ModLoader.loadedMods` or `ModLoader.enabledMods`
+-- @string modName
+-- @treturn bool Whether or not the mod is found
 function ModLoader.modExists(modName)
     return ModLoader.isDirectory("mods/" .. modName)
 end
@@ -723,20 +787,28 @@ function ModLoader.readEnabledMods()
     return v
 end
 
+--- Returns the current instance of the Arena
+-- @treturn Arena|nil The instance of the Arena, or nil if it cannot be found.
 function ModLoader.getArena()
     return main:get("arena")
 end
 
+--- Logs a message to the console *as the ModLoader*<br>
+-- If you would like to log a message from your mod, use `Mod:log` instead.
+-- @param ... The data to be logged to the console
 function ModLoader.log(...)
     local b = {...}
     local t = ""
     for _,v in ipairs(b) do
-        t = t .. v .. "\t"
+        t = t .. tostring(v) .. "\t"
     end
     io.stdout:write("[SNKMD] " .. t .. "\n")
     io.stdout:flush()
 end
 
+--- Logs a debug message to the console *as the ModLoader*<br>
+-- If `ModLoader.developerMode` is unset, the message will not be logged. If `ModLoader.extraDebugInfo` is set, then extra debug info will be displayed.
+-- @param ... The data to be logged to the console
 function ModLoader.debug(...)
     if not ModLoader.developerMode then return end
     local b = {...}
@@ -753,13 +825,16 @@ function ModLoader.debug(...)
     io.stdout:flush()
 end
 
+--- Logs an error message to the console *as the ModLoader*<br>
+-- If you would like to log a message from your mod, use `Mod:error` instead.<br>
+-- @param ... The error data to be logged to the console
 function ModLoader.error(...)
     local b = {...}
     local t = ""
     for _,v in ipairs(b) do
-        t = t .. v .. "\t"
+        t = t .. tostring(v) .. "\t"
     end
-    io.stderr:write("[SNKMD] " .. t .. "\n")
+    io.stderr:write("[SNKMD][ERR] " .. t .. "\n")
     io.stderr:flush()
 end
 

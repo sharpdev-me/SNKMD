@@ -1,5 +1,5 @@
 local Mod = require("modloader.mod")
-local ModTypes = require("modloader.modtypes")
+local LevelThree = require("modloader.types.levelthree")
 
 local vanilla = Mod{
     name = "snkrx",
@@ -22,7 +22,7 @@ for k,_ in pairs(character_classes) do
         end
     }
 
-    vanilla[k]:setLevelThree(ModTypes.LevelThree{
+    vanilla[k]:setLevelThree(LevelThree{
         name = character_effect_names_gray[k]:sub(("[light_bg]"):len()),
         description = character_effect_descriptions[k],
         color = character_colors[k],

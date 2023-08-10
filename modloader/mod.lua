@@ -1,4 +1,7 @@
-local ModTypes = require 'modloader.modtypes'
+--- The type that all Mods extend.
+-- @classmod Mod
+local MHero = require 'modloader.types.hero'
+local MClass = require 'modloader.types.class'
 local ModShapes = require 'modloader.modshapes'
 
 return function(data)
@@ -7,12 +10,18 @@ return function(data)
             return t
         end
     })
+    --- The name of the mod.
     mod.name = data.name
+    --- The mod's author.
     mod.author = data.author
+    --- The description of the mod.
     mod.description = data.description
+    --- The mod's version.
     mod.version = data.version
+
     mod._main_file = data.main_file
     mod._mod_folder = data.mod_folder
+
     mod.modCard = {}
 
     mod._heroes = {}
@@ -27,32 +36,49 @@ return function(data)
     mod._onEnable = function(self) end
     mod._onDisable = function(self) end
 
+    --- Sets a function to be automatically called when the mod is loaded.
+    -- Note: this function will be run **even if your mod is disabled**
+    -- @func func The function to be called when the mod is loaded
     function mod:onLoad(func)
         self._onLoad = func
     end
 
+    --- Sets a function to be automatically called when the mod is enabled.
+    -- This is where you should initialize your mod's state and add event handlers and patches
+    -- @func func The function to be called when the mod is enabled
+    -- @see ModLoader.addEventHandler
     function mod:onEnable(func)
         self._onEnable = func
     end
 
+    --- Sets a function to be automatically called when the mod is disabled.
+    -- This is where you will cleanup your mod's state. This is where you will remove event handlers and patches.
+    -- @func func The function to be called when the mod is disabled
+    -- @see mod:unpatchAll
     function mod:onDisable(func)
         self._onDisable = func
     end
 
+    --- Gets the mod's configuration folder relative to the LOVE directory
+    -- @treturn string The path of the mod's configuration folder
     function mod:getConfigurationFolder()
         return self._mod_folder .. "/config"
     end
 
+    --- Gets the mod's configuration folder as an absolute path
+    -- @treturn string The absolute path of the mod's configuration folder
     function mod:getConfigurationFolderAbsolute()
         return self:getModFolderAbsolute() .. "/config"
     end
 
+    --- Gets the mod's folder as an absolute path
+    -- @treturn string The absolute path of the mod's folder
     function mod:getModFolderAbsolute()
         return love.filesystem.getSaveDirectory() .. "/" .. self._mod_folder
     end
 
     --- Returns the mod's configuration
-    -- @return unknown
+    -- @treturn unknown The data loaded from the mod's `config.lua` file
     function mod:getConfiguration()
         if self.configuration then
             return self.configuration
@@ -70,6 +96,10 @@ return function(data)
         end
     end
 
+    ---
+    -- @string eventName The name of the event to listen to
+    -- @func handler The function to be called with the event data
+    -- @see ModLoader.addEventHandler
     function mod:addEventHandler(eventName, handler)
         return ModLoader.addEventHandler(eventName, handler)
     end
@@ -96,14 +126,24 @@ return function(data)
         return ModLoader.isModEnabled(self)
     end
 
-    function mod:log(msg)
-        io.stdout:write("[" .. self.name .. "] " .. msg .. "\n")
+    function mod:log(...)
+        local b = {...}
+        local t = ""
+        for _,v in ipairs(b) do
+            t = t .. tostring(v) .. "\t"
+        end
+        io.stdout:write("[" .. self.name .. "] " .. t .. "\n")
         io.stdout:flush()
     end
 
-    function mod:error(msg)
-        io.stderr:write("[" .. self.name .. "][ERROR] " .. msg .. "\n")
-        io.stderr:flush()
+    function mod:error(...)
+        local b = {...}
+        local t = ""
+        for _,v in ipairs(b) do
+            t = t .. tostring(v) .. "\t"
+        end
+        io.stdout:write("[" .. self.name .. "][ERR] " .. t .. "\n")
+        io.stdout:flush()
     end
 
     function mod:addShopCondition(comp)
@@ -115,16 +155,15 @@ return function(data)
         table.insert(self._shopConditions, comp)
     end
 
+    --- Registers a new hero.<br>
+    -- NOTE: While it would be good practice to only add heroes in `mod:onEnable`, only enabled mods will have heroes added to the game.<br>
+    -- @tparam Hero.HeroDefinition definition
     function mod:createHero(definition)
-        definition.name = definition.name or "ModHero"
-        if self._heroes[definition.name] then return nil, "hero already exists" end
-        definition.description = definition.description or "ModHeroDescription"
-        definition.tier = definition.tier or 1
-        -- TODO: revamp class system and update it here
-        definition.classes = definition.classes or {"warrior"}
-        definition.mod = self
-
-        local hero = ModTypes.Hero(definition)
+        local hero, err = MHero(self, definition)
+        if hero == nil then
+            self:error(err)
+            return nil
+        end
 
         self._heroes[hero.name] = hero
 
@@ -134,25 +173,11 @@ return function(data)
     end
 
     function mod:createClass(definition)
-        definition.name = definition.name or "ModClass"
-        if self._classes[definition.name] then return nil, "class already exists" end
-        definition.description = definition.description or "ModClassDescription"
-        definition.color = definition.color or green
-        definition.groups = definition.groups or {1}
-        definition.image = definition.image or _G["ranger"]
-        definition.stats = definition.stats or {}
-
-        definition.stats.hp = definition.stats.hp or 1
-        definition.stats.dmg = definition.stats.dmg or 1
-        definition.stats.aspd = definition.stats.aspd or 1
-        definition.stats.area_dmg = definition.stats.area_dmg or 1
-        definition.stats.area_size = definition.stats.area_size or 1
-        definition.stats.def = definition.stats.def or 1
-        definition.stats.mvspd = definition.stats.mvspd or 1
-
-        definition.mod = self
-
-        local class = ModTypes.Class(definition)
+        local class, err = MClass(self, definition)
+        if class == nil then
+            self:error(err)
+            return nil
+        end
 
         self._classes[class.name] = class
 
@@ -162,16 +187,11 @@ return function(data)
     end
 
     function mod:createItem(definition)
-        definition.name = definition.name or "ModItem"
-        if self._items[definition.name] then return nil, "item already exists" end
-        definition.description = definition.description or "ModItemDescription"
-        definition.levels = definition.levels or {2,3}
-        definition.image = definition.image or _G["ultimatum"]
-        definition.xp_cost = definition.xp_cost or 5
-
-        definition.mod = self
-
-        local item = ModTypes.Item(definition)
+        local item, err = MItem(self, definition)
+        if item == nil then
+            self:error(err)
+            return nil
+        end
 
         self._items[item.name] = item
 
@@ -218,6 +238,7 @@ return function(data)
         return patch == self._patches[patchPath]
     end
 
+    --- Disables all patches added by the mod
     function mod:unpatchAll()
         for k,_ in pairs(self._patches) do
             mod:unpatchFunction(k)
